@@ -455,7 +455,7 @@
     // --- DASHBOARD MASTER & GRAFIK ---
     async function muatDataUtama() {
       showLoad("Menarik Data Spreadsheet..."); 
-      const listRes = await panggilAPI({ action: "listOrang" });
+     const listRes = await panggilAPI({ action: "dashboard" });
       hideLoad();
       if(listRes.sukses) {
         dataOrangMaster = listRes.data; 
