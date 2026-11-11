@@ -1,251 +1,460 @@
-<script>
-    // =========================================================================
-    // KONFIGURASI API (https://script.google.com/macros/s/AKfycbyzjyTZXaz5VMwL83-oAmYNGlM8ohPlnultykVlgCuFfzKtUXiKYXepmIDoiKjsQaEdpg/exec)
-    // =========================================================================
-    const API_URL = 'https://script.google.com/macros/s/AKfycbyzjyTZXaz5VMwL83-oAmYNGlM8ohPlnultykVlgCuFfzKtUXiKYXepmIDoiKjsQaEdpg/exec';
-    
-    let currentUser = null; 
-    let html5QrcodeScanner = null; 
-    let isScanning = false; 
-    let audioAktif = false; 
-    let lastScan = ""; 
-    let jadwalBel = []; 
-    let grafikInstance = null;
-    const chimeIn = new Audio("https://actions.google.com/sounds/v1/alarms/chime_alarm.ogg"); 
-    
-    // UPDATE JAM OTOMATIS
-    setInterval(() => {
-        const now = new Date();
-        const elTgl = document.getElementById('header-tanggal');
-        const elJam = document.getElementById('header-jam');
-        if(elTgl) elTgl.innerText = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
-        if(elJam) elJam.innerText = now.toLocaleTimeString('id-ID', { hour12: false });
-    }, 1000);
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presensi MTs PSM Loceret</title>
+    <!-- Library CSS (Tailwind) & JS yang dibutuhkan -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .nav-active { background-color: #10b981; color: white; font-weight: bold; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
 
-    const showLoad = (txt) => { 
-        document.getElementById('load-text').innerText = txt; 
-        document.getElementById('loading').classList.remove('hidden'); 
-    }
-    const hideLoad = () => document.getElementById('loading').classList.add('hidden');
-    
-    function togglePassword() {
-      const p = document.getElementById('password');
-      if(p) p.type = p.type === 'password' ? 'text' : 'password';
-    }
+    <!-- LOADING OVERLAY -->
+    <div id="loading" class="hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex flex-col justify-center items-center">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-green-500 mb-4"></div>
+        <p id="load-text" class="text-white text-lg font-semibold">Memuat...</p>
+    </div>
 
-    // =========================================================================
-    // FUNGSI FETCH (MENGGUNAKAN GET AGAR ANTI-CORS GOOGLE)
-    // =========================================================================
-    async function panggilAPI(dataPayload) {
-      try {
-        const params = new URLSearchParams(dataPayload).toString();
-        const urlFinal = `${API_URL}?${params}`;
+    <!-- HALAMAN LOGIN -->
+    <div id="login-view" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-xl shadow-xl w-full max-w-md border-t-8 border-green-600">
+            <div class="text-center mb-6">
+                <h1 class="text-2xl font-bold text-gray-800">Sistem Presensi</h1>
+                <p class="text-gray-500">MTs PSM Loceret</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <input type="text" id="username" class="w-full px-4 py-2 border rounded-lg focus:ring-green-500 focus:border-green-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <div class="relative">
+                        <input type="password" id="password" class="w-full px-4 py-2 border rounded-lg focus:ring-green-500 focus:border-green-500">
+                        <button onclick="togglePassword()" class="absolute inset-y-0 right-3 text-gray-500 text-sm">Lihat</button>
+                    </div>
+                </div>
+                <button onclick="prosesLogin()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg mt-4 transition">LOGIN SEKARANG</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- APLIKASI UTAMA (DASHBOARD DLL) -->
+    <div id="app-layout" class="hidden min-h-screen flex flex-col">
+        <!-- HEADER -->
+        <header class="bg-white shadow-sm border-b px-6 py-4 flex justify-between items-center sticky top-0 z-40">
+            <div>
+                <h1 class="text-xl font-bold text-green-700">MTs PSM Loceret</h1>
+                <p class="text-xs text-gray-500"><span id="header-tanggal"></span> | <span id="header-jam" class="font-bold text-gray-800"></span></p>
+            </div>
+            <div class="text-right">
+                <p class="text-sm text-gray-500">Login sebagai:</p>
+                <p id="user-info" class="font-bold text-gray-800 text-sm"></p>
+            </div>
+        </header>
+
+        <div class="flex flex-1 overflow-hidden">
+            <!-- SIDEBAR NAVIGASI -->
+            <aside class="w-64 bg-white border-r shadow-sm flex flex-col p-4 space-y-2 overflow-y-auto hidden md:flex">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Menu Utama</p>
+                <button id="nav-dashboard" onclick="pindahMenu('dashboard')" class="nav-item nav-active flex items-center p-3 rounded-lg text-left hover:bg-green-50 transition"><span class="ml-2">Dashboard</span></button>
+                <button id="nav-scan" onclick="pindahMenu('scan')" class="nav-item flex items-center p-3 rounded-lg text-left hover:bg-green-50 transition"><span class="ml-2">Scan Kamera & Alat</span></button>
+                <button id="nav-rekap" onclick="pindahMenu('rekap')" class="nav-item flex items-center p-3 rounded-lg text-left hover:bg-green-50 transition"><span class="ml-2">Laporan Absensi</span></button>
+                <button id="nav-pengaturan" onclick="pindahMenu('pengaturan')" class="nav-item flex items-center p-3 rounded-lg text-left hover:bg-green-50 transition"><span class="ml-2">Pengaturan</span></button>
+                <div class="mt-auto pt-4 border-t">
+                    <button onclick="location.reload()" class="w-full text-red-500 font-bold p-3 text-left hover:bg-red-50 rounded-lg">Logout</button>
+                </div>
+            </aside>
+
+            <!-- KONTEN HALAMAN -->
+            <main class="flex-1 bg-gray-50 p-6 overflow-y-auto">
+                <h2 id="judul-halaman" class="text-2xl font-bold text-gray-800 mb-6">Dashboard Sistem</h2>
+
+                <!-- 1. VIEW DASHBOARD -->
+                <div id="view-dashboard" class="view-panel space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
+                            <p class="text-sm text-gray-500 mb-1">Total Guru</p>
+                            <h3 id="dash-guru" class="text-3xl font-bold text-gray-800">0</h3>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-orange-500">
+                            <p class="text-sm text-gray-500 mb-1">Total Siswa</p>
+                            <h3 id="dash-siswa" class="text-3xl font-bold text-gray-800">0</h3>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
+                            <p class="text-sm text-gray-500 mb-1">Hadir Hari Ini</p>
+                            <h3 id="dash-hadir" class="text-3xl font-bold text-gray-800">0</h3>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm h-72">
+                        <canvas id="chartKehadiran"></canvas>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead><tr class="bg-gray-100 text-gray-600 text-sm"><th class="p-3">Data</th></tr></thead>
+                            <tbody id="tabel-utama"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 2. VIEW SCAN (KAMERA & ALAT) -->
+                <div id="view-scan" class="view-panel hidden space-y-6">
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 text-yellow-800 text-sm mb-4">
+                        <b>Penting:</b> Pilih Sesi Absen di bawah ini terlebih dahulu sebelum mulai scan barcode.
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="font-bold text-gray-700 block mb-2">Pilih Sesi Absen:</label>
+                        <select id="sesi-absen" class="w-full md:w-1/2 p-3 border rounded-lg font-bold bg-white text-gray-700 shadow-sm focus:ring-green-500">
+                            <option value="Datang">Absen Datang (Pagi)</option>
+                            <option value="Pulang">Absen Pulang (Sore)</option>
+                            <option value="Kegiatan">Absen Kegiatan Khusus</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Box Scan Kamera HP/Webcam -->
+                        <div class="bg-white p-6 rounded-xl shadow-sm text-center">
+                            <h3 class="font-bold text-lg mb-4">Scan via Kamera (HP/Laptop)</h3>
+                            <div id="reader" class="w-full max-w-sm mx-auto overflow-hidden rounded-lg border-2 border-dashed border-gray-300 mb-4 bg-gray-50"></div>
+                            <button id="btn-start" onclick="mulaiKamera()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow font-bold w-full max-w-sm">Nyalakan Kamera</button>
+                            <button id="btn-stop" onclick="stopKamera()" class="hidden bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded shadow font-bold w-full max-w-sm mt-2">Matikan Kamera</button>
+                        </div>
+                        
+                        <!-- Box Scan Alat Barcode Fisik -->
+                        <div class="bg-white p-6 rounded-xl shadow-sm">
+                            <h3 class="font-bold text-lg mb-4">Scan via Alat Barcode (Scanner Gun)</h3>
+                            <p class="text-sm text-gray-500 mb-4">Klik kotak di bawah ini agar kursor berkedip, lalu tembak barcode menggunakan alat scanner. Data akan otomatis tersimpan.</p>
+                            <input type="text" id="input-scanner" onkeypress="handleScanFisik(event)" placeholder="Klik di sini sebelum menembak barcode..." class="w-full p-4 border-2 border-green-500 rounded-lg text-center font-mono text-lg focus:outline-none focus:ring-4 focus:ring-green-200">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. VIEW REKAP LAPORAN -->
+                <div id="view-rekap" class="view-panel hidden bg-white p-6 rounded-xl shadow-sm">
+                    <div class="flex flex-col md:flex-row gap-4 mb-6 bg-gray-50 p-4 rounded-lg border">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Jenis Laporan</label>
+                            <select id="jenis-laporan" onchange="aturFormLaporan()" class="border p-2 rounded w-full">
+                                <option value="harian">Filter Rentang Tanggal</option>
+                            </select>
+                        </div>
+                        <div id="form-harian" class="flex gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Tanggal Mulai</label>
+                                <input type="date" id="tgl-mulai" class="border p-2 rounded w-full">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Tanggal Selesai</label>
+                                <input type="date" id="tgl-selesai" class="border p-2 rounded w-full">
+                            </div>
+                        </div>
+                        <div class="flex items-end gap-2 mt-4 md:mt-0">
+                            <button onclick="tarikDataRekap()" class="bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700">Tarik Data</button>
+                            <button onclick="cetakLaporanPDF()" class="bg-gray-800 text-white px-4 py-2 rounded font-bold hover:bg-gray-900">Cetak (PDF)</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse">
+                            <thead class="bg-gray-100 border-y text-sm text-gray-600">
+                                <tr>
+                                    <th class="p-4 text-left">Waktu Absen</th>
+                                    <th class="p-4 text-left">Nomor Induk</th>
+                                    <th class="p-4 text-left">Nama / Identitas</th>
+                                    <th class="p-4 text-left">Status</th>
+                                    <th class="p-4 text-left">Sesi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabel-rekap" class="text-sm">
+                                <tr><td colspan="5" class="p-8 text-center text-gray-500 italic">Silakan filter tanggal dan klik "Tarik Data"</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 4. VIEW PENGATURAN -->
+                <div id="view-pengaturan" class="view-panel hidden space-y-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm">
+                        <h3 class="font-bold text-lg border-b pb-2 mb-4">Profil Akun Anda</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><label class="block text-sm text-gray-600">Nama Lengkap</label><input type="text" id="set-nama" readonly class="w-full p-2 bg-gray-100 border rounded mt-1"></div>
+                            <div><label class="block text-sm text-gray-600">Username</label><input type="text" id="set-user" readonly class="w-full p-2 bg-gray-100 border rounded mt-1"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm">
+                        <h3 class="font-bold text-lg border-b pb-2 mb-4">Pengaturan Suara / Bel</h3>
+                        <p class="text-gray-600 text-sm mb-4" id="status-teks-bel">Bel otomatis saat ini <b class="text-red-500">NONAKTIF</b>.</p>
+                        <button id="btn-audio-bg" onclick="toggleAudioAI()" class="bg-yellow-500 hover:bg-yellow-600 text-yellow-950 font-bold px-6 py-2.5 rounded-lg shadow-md transition text-sm">AKTIFKAN BEL SEKARANG</button>
+                    </div>
+                </div>
+            </main>
+        </div>
         
-        const r = await fetch(urlFinal, { method: 'GET', mode: 'cors' }); 
-        return await r.json(); 
-      } catch (e) { 
-        console.error(e);
-        return { sukses: false, pesan: "Gagal terhubung ke database. Pastikan URL Deployment benar dan disetel ke 'Anyone'." }; 
-      }
-    }
+        <!-- Mobile Bottom Nav -->
+        <nav class="md:hidden bg-white border-t flex justify-around p-2 sticky bottom-0 z-40">
+            <button onclick="pindahMenu('dashboard')" class="p-2 text-green-700 flex flex-col items-center"><span class="text-xs font-bold">Home</span></button>
+            <button onclick="pindahMenu('scan')" class="p-2 text-green-700 flex flex-col items-center"><span class="text-xs font-bold">Scan</span></button>
+            <button onclick="pindahMenu('rekap')" class="p-2 text-green-700 flex flex-col items-center"><span class="text-xs font-bold">Rekap</span></button>
+        </nav>
+    </div>
 
-    function pindahMenu(menu) {
-      if(isScanning) stopKamera();
-      document.querySelectorAll('.view-panel').forEach(el => el.classList.add('hidden'));
-      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('nav-active'));
-      
-      const targetView = document.getElementById('view-' + menu);
-      const targetNav = document.getElementById('nav-' + menu);
-      if(targetView) targetView.classList.remove('hidden');
-      if(targetNav) targetNav.classList.add('nav-active');
-      
-      const judulMap = { 'dashboard': 'Dashboard Sistem', 'scan': 'Kamera & Alat Presensi', 'rekap': 'Laporan Absensi', 'pengaturan': 'Pengaturan Sistem' };
-      const elJudul = document.getElementById('judul-halaman');
-      if(elJudul && judulMap[menu]) elJudul.innerText = judulMap[menu];
+    <!-- SCRIPT ANDA DI SINI -->
+    <script>
+        // =========================================================================
+        // KONFIGURASI API (https://script.google.com/macros/s/AKfycbyzjyTZXaz5VMwL83-oAmYNGlM8ohPlnultykVlgCuFfzKtUXiKYXepmIDoiKjsQaEdpg/exec)
+        // =========================================================================
+        const API_URL = 'https://script.google.com/macros/s/AKfycbyzjyTZXaz5VMwL83-oAmYNGlM8ohPlnultykVlgCuFfzKtUXiKYXepmIDoiKjsQaEdpg/exec';
+        
+        let currentUser = null; 
+        let html5QrcodeScanner = null; 
+        let isScanning = false; 
+        let audioAktif = false; 
+        let lastScan = ""; 
+        let jadwalBel = []; 
+        let grafikInstance = null;
+        const chimeIn = new Audio("https://actions.google.com/sounds/v1/alarms/chime_alarm.ogg"); 
+        
+        // UPDATE JAM OTOMATIS
+        setInterval(() => {
+            const now = new Date();
+            const elTgl = document.getElementById('header-tanggal');
+            const elJam = document.getElementById('header-jam');
+            if(elTgl) elTgl.innerText = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
+            if(elJam) elJam.innerText = now.toLocaleTimeString('id-ID', { hour12: false });
+        }, 1000);
 
-      if(menu === 'dashboard') muatDashboard();
-    }
-
-    // =========================================================================
-    // FUNGSI UTAMA (LOGIN, DASHBOARD, SCAN, REKAP)
-    // =========================================================================
-    async function prosesLogin() {
-      const u = document.getElementById('username').value;
-      const p = document.getElementById('password').value;
-      
-      if(!u || !p) return Swal.fire('Perhatian', 'Isi username & password', 'warning');
-      
-      showLoad("Mengecek Kredensial...");
-      const res = await panggilAPI({ action: "login", user: u, pass: p });
-      hideLoad();
-      
-      if(res.sukses) {
-        currentUser = res.data; 
-        document.getElementById('login-view').classList.add('hidden'); 
-        document.getElementById('app-layout').classList.remove('hidden');
-        
-        const uiUser = document.getElementById('user-info');
-        if(uiUser) uiUser.innerText = `${currentUser.nama} (${currentUser.peran})`; 
-        
-        const setNama = document.getElementById('set-nama');
-        const setUser = document.getElementById('set-user');
-        if(setNama) setNama.value = currentUser.nama;
-        if(setUser) setUser.value = currentUser.username;
-
-        // Ambil jadwal bel
-        panggilAPI({ action: "bel" }).then(r => { if(r.sukses) jadwalBel = r.data; }); 
-        
-        pindahMenu('dashboard');
-      } else {
-        Swal.fire('Akses Ditolak', res.pesan, 'error');
-      }
-    }
-
-    async function muatDashboard() {
-      showLoad("Menarik Statistik..."); 
-      const res = await panggilAPI({ action: "dashboard" });
-      hideLoad();
-      
-      if(res.sukses) {
-        document.getElementById('dash-guru').innerText = res.guru;
-        document.getElementById('dash-siswa').innerText = res.siswa;
-        document.getElementById('dash-hadir').innerText = res.hadir;
-        
-        renderGrafik(res.grafik.label, res.grafik.data);
-        
-        const tabelUtama = document.getElementById('tabel-utama');
-        if(tabelUtama) {
-            tabelUtama.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-500 text-xs italic">Menampilkan statistik (Daftar nama tidak dimuat di mode ini).</td></tr>`;
+        const showLoad = (txt) => { 
+            document.getElementById('load-text').innerText = txt; 
+            document.getElementById('loading').classList.remove('hidden'); 
         }
-      } else {
-        Swal.fire('Error', res.pesan, 'error');
-      }
-    }
+        const hideLoad = () => document.getElementById('loading').classList.add('hidden');
+        
+        function togglePassword() {
+          const p = document.getElementById('password');
+          if(p) p.type = p.type === 'password' ? 'text' : 'password';
+        }
 
-    function renderGrafik(labelsArray, dataArray) {
-      const elCtx = document.getElementById('chartKehadiran');
-      if(!elCtx) return;
-      const ctx = elCtx.getContext('2d');
-      if (grafikInstance) grafikInstance.destroy(); 
-      grafikInstance = new Chart(ctx, {
-        type: 'line',
-        data: { labels: labelsArray, datasets: [{ label: 'Total Kehadiran', data: dataArray, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderWidth: 3, tension: 0.4, fill: true, pointBackgroundColor: '#047857' }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { borderDash: [4, 4] } }, x: { grid: { display: false } } } }
-      });
-    }
+        // =========================================================================
+        // FUNGSI FETCH (MENGGUNAKAN GET AGAR ANTI-CORS GOOGLE)
+        // =========================================================================
+        async function panggilAPI(dataPayload) {
+          try {
+            const params = new URLSearchParams(dataPayload).toString();
+            const urlFinal = `${API_URL}?${params}`;
+            
+            const r = await fetch(urlFinal, { method: 'GET', mode: 'cors' }); 
+            return await r.json(); 
+          } catch (e) { 
+            console.error(e);
+            return { sukses: false, pesan: "Gagal terhubung ke database. Pastikan URL Deployment benar dan disetel ke 'Anyone'." }; 
+          }
+        }
 
-    function mulaiKamera() {
-      document.getElementById('btn-start').classList.add('hidden');
-      document.getElementById('btn-stop').classList.remove('hidden');
-      html5QrcodeScanner = new Html5Qrcode("reader");
-      isScanning = true;
-      html5QrcodeScanner.start(
-        { facingMode: "environment" }, 
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        async (decodedText) => {
-            if(lastScan !== decodedText) {
-                lastScan = decodedText;
+        function pindahMenu(menu) {
+          if(isScanning) stopKamera();
+          document.querySelectorAll('.view-panel').forEach(el => el.classList.add('hidden'));
+          document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('nav-active'));
+          
+          const targetView = document.getElementById('view-' + menu);
+          const targetNav = document.getElementById('nav-' + menu);
+          if(targetView) targetView.classList.remove('hidden');
+          if(targetNav) targetNav.classList.add('nav-active');
+          
+          const judulMap = { 'dashboard': 'Dashboard Sistem', 'scan': 'Kamera & Alat Presensi', 'rekap': 'Laporan Absensi', 'pengaturan': 'Pengaturan Sistem' };
+          const elJudul = document.getElementById('judul-halaman');
+          if(elJudul && judulMap[menu]) elJudul.innerText = judulMap[menu];
+
+          if(menu === 'dashboard') muatDashboard();
+        }
+
+        // =========================================================================
+        // FUNGSI UTAMA (LOGIN, DASHBOARD, SCAN, REKAP)
+        // =========================================================================
+        async function prosesLogin() {
+          const u = document.getElementById('username').value;
+          const p = document.getElementById('password').value;
+          
+          if(!u || !p) return Swal.fire('Perhatian', 'Isi username & password', 'warning');
+          
+          showLoad("Mengecek Kredensial...");
+          const res = await panggilAPI({ action: "login", user: u, pass: p });
+          hideLoad();
+          
+          if(res.sukses) {
+            currentUser = res.data; 
+            document.getElementById('login-view').classList.add('hidden'); 
+            document.getElementById('app-layout').classList.remove('hidden');
+            
+            const uiUser = document.getElementById('user-info');
+            if(uiUser) uiUser.innerText = `${currentUser.nama} (${currentUser.peran})`; 
+            
+            const setNama = document.getElementById('set-nama');
+            const setUser = document.getElementById('set-user');
+            if(setNama) setNama.value = currentUser.nama;
+            if(setUser) setUser.value = currentUser.username;
+
+            // Ambil jadwal bel
+            panggilAPI({ action: "bel" }).then(r => { if(r.sukses) jadwalBel = r.data; }); 
+            
+            pindahMenu('dashboard');
+          } else {
+            Swal.fire('Akses Ditolak', res.pesan, 'error');
+          }
+        }
+
+        async function muatDashboard() {
+          showLoad("Menarik Statistik..."); 
+          const res = await panggilAPI({ action: "dashboard" });
+          hideLoad();
+          
+          if(res.sukses) {
+            document.getElementById('dash-guru').innerText = res.guru;
+            document.getElementById('dash-siswa').innerText = res.siswa;
+            document.getElementById('dash-hadir').innerText = res.hadir;
+            
+            renderGrafik(res.grafik.label, res.grafik.data);
+            
+            const tabelUtama = document.getElementById('tabel-utama');
+            if(tabelUtama) {
+                tabelUtama.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-500 text-xs italic">Menampilkan statistik (Daftar nama tidak dimuat di mode ini).</td></tr>`;
+            }
+          } else {
+            Swal.fire('Error', res.pesan, 'error');
+          }
+        }
+
+        function renderGrafik(labelsArray, dataArray) {
+          const elCtx = document.getElementById('chartKehadiran');
+          if(!elCtx) return;
+          const ctx = elCtx.getContext('2d');
+          if (grafikInstance) grafikInstance.destroy(); 
+          grafikInstance = new Chart(ctx, {
+            type: 'line',
+            data: { labels: labelsArray, datasets: [{ label: 'Total Kehadiran', data: dataArray, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderWidth: 3, tension: 0.4, fill: true, pointBackgroundColor: '#047857' }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { borderDash: [4, 4] } }, x: { grid: { display: false } } } }
+          });
+        }
+
+        function mulaiKamera() {
+          document.getElementById('btn-start').classList.add('hidden');
+          document.getElementById('btn-stop').classList.remove('hidden');
+          html5QrcodeScanner = new Html5Qrcode("reader");
+          isScanning = true;
+          html5QrcodeScanner.start(
+            { facingMode: "environment" }, 
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            async (decodedText) => {
+                if(lastScan !== decodedText) {
+                    lastScan = decodedText;
+                    const sesi = document.getElementById('sesi-absen').value;
+                    showLoad("Memproses Absen...");
+                    const r = await panggilAPI({ action: "scan", qr: decodedText, sesi: sesi, pemindai: currentUser.username });
+                    hideLoad();
+                    
+                    if(r.sukses) Swal.fire('Berhasil', `${r.data.nama} - ${r.pesan} (${r.data.waktu})`, 'success');
+                    else Swal.fire('Gagal', r.pesan, 'error');
+                    
+                    setTimeout(() => { lastScan = ""; }, 4000); 
+                }
+            },
+            (errorMessage) => {}
+          ).catch((err) => {
+            Swal.fire('Error Kamera', 'Kamera tidak ditemukan atau akses ditolak.', 'error');
+            stopKamera();
+          });
+        }
+
+        function stopKamera() {
+          if(html5QrcodeScanner) {
+            html5QrcodeScanner.stop().then(() => { html5QrcodeScanner.clear(); isScanning = false; }).catch(err => console.log(err));
+          }
+          document.getElementById('btn-start').classList.remove('hidden');
+          document.getElementById('btn-stop').classList.add('hidden');
+        }
+
+        async function handleScanFisik(event) {
+            if(event.key === 'Enter') {
+                const val = event.target.value;
                 const sesi = document.getElementById('sesi-absen').value;
-                showLoad("Memproses Absen...");
-                const r = await panggilAPI({ action: "scan", qr: decodedText, sesi: sesi, pemindai: currentUser.username });
+                
+                showLoad("Menyimpan...");
+                const r = await panggilAPI({ action: "scan", qr: val, sesi: sesi, pemindai: currentUser.username });
                 hideLoad();
                 
                 if(r.sukses) Swal.fire('Berhasil', `${r.data.nama} - ${r.pesan} (${r.data.waktu})`, 'success');
                 else Swal.fire('Gagal', r.pesan, 'error');
                 
-                setTimeout(() => { lastScan = ""; }, 4000); 
+                event.target.value = '';
             }
-        },
-        (errorMessage) => {}
-      ).catch((err) => {
-        Swal.fire('Error Kamera', 'Kamera tidak ditemukan atau akses ditolak.', 'error');
-        stopKamera();
-      });
-    }
-
-    function stopKamera() {
-      if(html5QrcodeScanner) {
-        html5QrcodeScanner.stop().then(() => { html5QrcodeScanner.clear(); isScanning = false; }).catch(err => console.log(err));
-      }
-      document.getElementById('btn-start').classList.remove('hidden');
-      document.getElementById('btn-stop').classList.add('hidden');
-    }
-
-    async function handleScanFisik(event) {
-        if(event.key === 'Enter') {
-            const val = event.target.value;
-            const sesi = document.getElementById('sesi-absen').value;
-            
-            showLoad("Menyimpan...");
-            const r = await panggilAPI({ action: "scan", qr: val, sesi: sesi, pemindai: currentUser.username });
-            hideLoad();
-            
-            if(r.sukses) Swal.fire('Berhasil', `${r.data.nama} - ${r.pesan} (${r.data.waktu})`, 'success');
-            else Swal.fire('Gagal', r.pesan, 'error');
-            
-            event.target.value = '';
         }
-    }
 
-    function aturFormLaporan() {
-      const jns = document.getElementById('jenis-laporan').value;
-      if(jns === 'harian') { 
-          document.getElementById('form-harian').classList.remove('hidden'); 
-          document.getElementById('form-bulanan').classList.add('hidden'); 
-      } else { 
-          document.getElementById('form-harian').classList.add('hidden'); 
-          document.getElementById('form-bulanan').classList.remove('hidden'); 
-      }
-    }
+        function aturFormLaporan() {
+          const jns = document.getElementById('jenis-laporan').value;
+          if(jns === 'harian') { 
+              document.getElementById('form-harian').classList.remove('hidden'); 
+              document.getElementById('form-bulanan').classList.add('hidden'); 
+          } else { 
+              document.getElementById('form-harian').classList.add('hidden'); 
+              document.getElementById('form-bulanan').classList.remove('hidden'); 
+          }
+        }
 
-    async function tarikDataRekap() {
-      const tglMulai = document.getElementById('tgl-mulai').value;
-      const tglSelesai = document.getElementById('tgl-selesai').value;
-      
-      if(!tglMulai || !tglSelesai) return Swal.fire('Info', 'Isi tanggal mulai dan selesai.', 'warning');
-      
-      showLoad("Menarik Rekap...");
-      const res = await panggilAPI({ action: "rekap", tglMulai: tglMulai, tglSelesai: tglSelesai });
-      hideLoad();
-      
-      const tbody = document.getElementById('tabel-rekap');
-      tbody.innerHTML = "";
-      
-      if(res.sukses) {
-        if(res.data.length === 0) return tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-gray-500">Tidak ada data di tanggal tersebut.</td></tr>`;
-        
-        res.data.forEach(d => {
-          let badge = d.status === "HADIR" ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
-          tbody.innerHTML += `<tr>
-            <td class="p-4 border-b">${d.tanggal} <br><span class="text-xs text-gray-500">${d.waktu}</span></td>
-            <td class="p-4 border-b font-mono text-sm">${d.idOrang}</td>
-            <td class="p-4 border-b font-bold">${d.idOrang} <br><span class="font-normal text-xs text-gray-500">Tipe: ${d.tipe}</span></td>
-            <td class="p-4 border-b"><span class="px-2 py-1 rounded text-xs font-bold ${badge}">${d.status}</span></td>
-            <td class="p-4 border-b font-bold text-gray-700">${d.sesi}</td>
-          </tr>`;
-        });
-      } else {
-        Swal.fire('Error', res.pesan, 'error');
-      }
-    }
+        async function tarikDataRekap() {
+          const tglMulai = document.getElementById('tgl-mulai').value;
+          const tglSelesai = document.getElementById('tgl-selesai').value;
+          
+          if(!tglMulai || !tglSelesai) return Swal.fire('Info', 'Isi tanggal mulai dan selesai.', 'warning');
+          
+          showLoad("Menarik Rekap...");
+          const res = await panggilAPI({ action: "rekap", tglMulai: tglMulai, tglSelesai: tglSelesai });
+          hideLoad();
+          
+          const tbody = document.getElementById('tabel-rekap');
+          tbody.innerHTML = "";
+          
+          if(res.sukses) {
+            if(res.data.length === 0) return tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-gray-500">Tidak ada data di tanggal tersebut.</td></tr>`;
+            
+            res.data.forEach(d => {
+              let badge = d.status === "HADIR" ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+              tbody.innerHTML += `<tr>
+                <td class="p-4 border-b">${d.tanggal} <br><span class="text-xs text-gray-500">${d.waktu}</span></td>
+                <td class="p-4 border-b font-mono text-sm">${d.idOrang}</td>
+                <td class="p-4 border-b font-bold">${d.idOrang} <br><span class="font-normal text-xs text-gray-500">Tipe: ${d.tipe}</span></td>
+                <td class="p-4 border-b"><span class="px-2 py-1 rounded text-xs font-bold ${badge}">${d.status}</span></td>
+                <td class="p-4 border-b font-bold text-gray-700">${d.sesi}</td>
+              </tr>`;
+            });
+          } else {
+            Swal.fire('Error', res.pesan, 'error');
+          }
+        }
 
-    function cetakLaporanPDF() {
-      Swal.fire('Info', 'Gunakan fitur print browser dengan menekan Ctrl+P pada halaman ini.', 'info');
-    }
+        function cetakLaporanPDF() {
+          Swal.fire('Info', 'Gunakan fitur print browser dengan menekan Ctrl+P pada halaman ini.', 'info');
+        }
 
-    function toggleAudioAI() {
-      audioAktif = !audioAktif;
-      const btn = document.getElementById('btn-audio-bg');
-      const sts = document.getElementById('status-teks-bel');
-      if(audioAktif) {
-        btn.innerText = "MATIKAN BEL"; 
-        btn.className = "bg-red-500 hover:bg-red-600 text-white font-bold px-6 py-2.5 rounded-lg shadow-md transition text-sm";
-        sts.innerHTML = 'Bel otomatis saat ini <b class="text-green-600">AKTIF</b>.';
-        chimeIn.play();
-      } else {
-        btn.innerText = "AKTIFKAN BEL SEKARANG"; 
-        btn.className = "bg-yellow-500 hover:bg-yellow-600 text-yellow-950 font-bold px-6 py-2.5 rounded-lg shadow-md transition text-sm";
-        sts.innerHTML = 'Bel otomatis saat ini <b class="text-red-500">NONAKTIF</b>.';
-      }
-    }
-</script>
+        function toggleAudioAI() {
+          audioAktif = !audioAktif;
+          const btn = document.getElementById('btn-audio-bg');
+          const sts = document.getElementById('status-teks-bel');
+          if(audioAktif) {
+            btn.innerText = "MATIKAN BEL"; 
+            btn.className = "bg-red-500 hover:bg-red-600 text-white font-bold px-6 py-2.5 rounded-lg shadow-md transition text-sm";
+            sts.innerHTML = 'Bel otomatis saat ini <b class="text-green-600">AKTIF</b>.';
+            chimeIn.play();
+          } else {
+            btn.innerText = "AKTIFKAN BEL SEKARANG"; 
+            btn.className = "bg-yellow-500 hover:bg-yellow-600 text-yellow-950 font-bold px-6 py-2.5 rounded-lg shadow-md transition text-sm";
+            sts.innerHTML = 'Bel otomatis saat ini <b class="text-red-500">NONAKTIF</b>.';
+          }
+        }
+    </script>
+</body>
+</html>
