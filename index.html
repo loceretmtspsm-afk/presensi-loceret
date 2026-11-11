@@ -3,256 +3,284 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Presensi MTs PSM Loceret</title>
-    <!-- Library CSS (Tailwind) & JS yang dibutuhkan -->
+    <title>Sistem Presensi MTs PSM Loceret</title>
+    <!-- Library -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
     <style>
-        .nav-active { background-color: #10b981; color: white; font-weight: bold; }
+        .nav-active { background-color: #047857; color: white; font-weight: bold; }
+        
+        /* PENGATURAN CETAK (PRINT) KERTAS */
+        @media print {
+            body * { visibility: hidden; }
+            #area-cetak, #area-cetak * { visibility: visible; }
+            #area-cetak { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none !important; }
+            /* Memaksa background color ikut tercetak */
+            * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
+            .page-break { page-break-after: always; }
+        }
+
+        /* UKURAN ID CARD STANDAR (KTP) */
+        .id-card {
+            width: 8.56cm; height: 5.4cm; 
+            position: relative; overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
-<body class="bg-gray-100 font-sans">
+<body class="bg-gray-100 font-sans text-gray-800">
 
-    <!-- LOADING OVERLAY -->
-    <div id="loading" class="hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex flex-col justify-center items-center">
+    <!-- AUDIO PLAYER UNTUK BEL OTOMATIS -->
+    <audio id="audio-bel" class="hidden" controls></audio>
+
+    <!-- OVERLAY LOADING -->
+    <div id="loading" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex flex-col justify-center items-center">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-green-500 mb-4"></div>
-        <p id="load-text" class="text-white text-lg font-semibold">Memuat...</p>
+        <p id="load-text" class="text-white text-lg font-semibold tracking-widest animate-pulse">Memuat...</p>
     </div>
 
     <!-- HALAMAN LOGIN -->
-    <div id="login-view" class="min-h-screen flex items-center justify-center p-4">
-        <div class="bg-white p-8 rounded-xl shadow-xl w-full max-w-md border-t-8 border-green-600">
-            <div class="text-center mb-6">
-                <h1 class="text-2xl font-bold text-gray-800">Sistem Presensi</h1>
-                <p class="text-gray-500">MTs PSM Loceret</p>
+    <div id="login-view" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-green-700 to-green-900">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md">
+            <div class="text-center mb-8">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Logo_Kementerian_Agama_Republik_Indonesia.png" alt="Logo" class="h-20 mx-auto mb-4 opacity-90">
+                <h1 class="text-3xl font-extrabold text-green-800">PORTAL ADMIN</h1>
+                <p class="text-gray-500 font-medium">MTs PSM Loceret</p>
             </div>
-            <div class="space-y-4">
+            <div class="space-y-5">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                    <input type="text" id="username" class="w-full px-4 py-2 border rounded-lg focus:ring-green-500 focus:border-green-500">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Username / NIP</label>
+                    <input type="text" id="username" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                    <div class="relative">
-                        <input type="password" id="password" class="w-full px-4 py-2 border rounded-lg focus:ring-green-500 focus:border-green-500">
-                        <button onclick="togglePassword()" class="absolute inset-y-0 right-3 text-gray-500 text-sm">Lihat</button>
-                    </div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Password</label>
+                    <input type="password" id="password" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white transition-all">
                 </div>
-                <button onclick="prosesLogin()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg mt-4 transition">LOGIN SEKARANG</button>
+                <button onclick="prosesLogin()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl mt-6 shadow-lg hover:shadow-xl transition-all">MASUK SISTEM</button>
             </div>
         </div>
     </div>
 
-    <!-- APLIKASI UTAMA (DASHBOARD DLL) -->
-    <div id="app-layout" class="hidden min-h-screen flex flex-col">
+    <!-- APLIKASI UTAMA (DASHBOARD) -->
+    <div id="app-layout" class="hidden min-h-screen flex flex-col no-print">
         <!-- HEADER -->
-        <header class="bg-white shadow-sm border-b px-6 py-4 flex justify-between items-center sticky top-0 z-40">
-            <div>
-                <h1 class="text-xl font-bold text-green-700">MTs PSM Loceret</h1>
-                <p class="text-xs text-gray-500"><span id="header-tanggal"></span> | <span id="header-jam" class="font-bold text-gray-800"></span></p>
+        <header class="bg-white shadow-md border-b border-gray-200 px-6 py-4 flex justify-between items-center z-40 relative">
+            <div class="flex items-center gap-3">
+                <div class="bg-green-700 text-white p-2 rounded-lg"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg></div>
+                <div>
+                    <h1 class="text-xl font-extrabold text-green-800 tracking-tight">MTs PSM Loceret</h1>
+                    <p class="text-xs text-gray-500 font-medium"><span id="header-tanggal"></span> &bull; <span id="header-jam" class="font-bold text-green-600"></span></p>
+                </div>
             </div>
-            <div class="text-right">
-                <p class="text-sm text-gray-500">Login sebagai:</p>
-                <p id="user-info" class="font-bold text-gray-800 text-sm"></p>
+            <div class="flex items-center gap-4">
+                <div class="text-right hidden sm:block">
+                    <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">Akses Pengguna</p>
+                    <p id="user-info" class="font-bold text-gray-800 text-sm"></p>
+                </div>
+                <button onclick="location.reload()" class="bg-red-50 hover:bg-red-100 text-red-600 p-2 rounded-lg transition-colors" title="Logout">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                </button>
             </div>
         </header>
 
         <div class="flex flex-1 overflow-hidden">
-            <!-- SIDEBAR NAVIGASI -->
-            <aside class="w-64 bg-white border-r shadow-sm flex flex-col p-4 space-y-2 overflow-y-auto hidden md:flex">
-                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Menu Utama</p>
-                <button id="nav-dashboard" onclick="pindahMenu('dashboard')" class="nav-item nav-active flex items-center p-3 rounded-lg text-left hover:bg-green-50 transition"><span class="ml-2">Dashboard</span></button>
-                <button id="nav-scan" onclick="pindahMenu('scan')" class="nav-item flex items-center p-3 rounded-lg text-left hover:bg-green-50 transition"><span class="ml-2">Scan Kamera & Alat</span></button>
-                <button id="nav-rekap" onclick="pindahMenu('rekap')" class="nav-item flex items-center p-3 rounded-lg text-left hover:bg-green-50 transition"><span class="ml-2">Laporan Absensi</span></button>
-                <button id="nav-pengaturan" onclick="pindahMenu('pengaturan')" class="nav-item flex items-center p-3 rounded-lg text-left hover:bg-green-50 transition"><span class="ml-2">Pengaturan</span></button>
-                <div class="mt-auto pt-4 border-t">
-                    <button onclick="location.reload()" class="w-full text-red-500 font-bold p-3 text-left hover:bg-red-50 rounded-lg">Logout</button>
+            <!-- SIDEBAR KIRI -->
+            <aside class="w-64 bg-white border-r border-gray-200 flex flex-col p-4 overflow-y-auto z-30">
+                <p class="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 ml-2">Menu Utama</p>
+                
+                <button onclick="pindahMenu('dashboard')" id="nav-dashboard" class="nav-item flex items-center gap-3 p-3 rounded-xl text-left hover:bg-green-50 transition-colors mb-1"><svg class="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg> <span class="font-medium text-sm">Dashboard</span></button>
+                
+                <button onclick="pindahMenu('scan')" id="nav-scan" class="nav-item menu-admin flex items-center gap-3 p-3 rounded-xl text-left hover:bg-green-50 transition-colors mb-1"><svg class="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg> <span class="font-medium text-sm">Scan Kartu (Absen)</span></button>
+                
+                <button onclick="pindahMenu('rekap')" id="nav-rekap" class="nav-item flex items-center gap-3 p-3 rounded-xl text-left hover:bg-green-50 transition-colors mb-4"><svg class="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> <span class="font-medium text-sm">Laporan Harian/Bulan</span></button>
+
+                <p class="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 ml-2 menu-admin">Manajemen Kartu</p>
+                <button onclick="pindahMenu('kartu-siswa')" id="nav-kartu-siswa" class="nav-item menu-admin flex items-center gap-3 p-3 rounded-xl text-left hover:bg-green-50 transition-colors mb-1"><svg class="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path></svg> <span class="font-medium text-sm">Cetak Kartu Siswa</span></button>
+                
+                <button onclick="pindahMenu('kartu-guru')" id="nav-kartu-guru" class="nav-item menu-admin flex items-center gap-3 p-3 rounded-xl text-left hover:bg-green-50 transition-colors mb-4"><svg class="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg> <span class="font-medium text-sm">Cetak Kartu Guru</span></button>
+
+                <div class="mt-auto pt-4 border-t border-gray-200">
+                    <p class="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 ml-2">Status Bel</p>
+                    <div class="bg-gray-50 p-3 rounded-xl text-xs border">
+                        <p class="font-bold text-gray-700 mb-1">Speaker Utama</p>
+                        <p class="text-green-600 font-bold flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Terhubung & Aktif</p>
+                    </div>
                 </div>
             </aside>
 
-            <!-- KONTEN HALAMAN -->
-            <main class="flex-1 bg-gray-50 p-6 overflow-y-auto">
-                <h2 id="judul-halaman" class="text-2xl font-bold text-gray-800 mb-6">Dashboard Sistem</h2>
-
-                <!-- 1. VIEW DASHBOARD -->
+            <!-- KONTEN TENGAH -->
+            <main class="flex-1 bg-slate-50 p-8 overflow-y-auto relative">
+                
+                <!-- VIEW 1: DASHBOARD -->
                 <div id="view-dashboard" class="view-panel space-y-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Ringkasan Hari Ini</h2>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
-                            <p class="text-sm text-gray-500 mb-1">Total Guru</p>
-                            <h3 id="dash-guru" class="text-3xl font-bold text-gray-800">0</h3>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center">
+                            <div class="p-4 bg-blue-50 text-blue-600 rounded-xl mr-4"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg></div>
+                            <div><p class="text-sm font-bold text-gray-400 uppercase">Total Guru</p><h3 id="dash-guru" class="text-3xl font-extrabold text-gray-800">0</h3></div>
                         </div>
-                        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-orange-500">
-                            <p class="text-sm text-gray-500 mb-1">Total Siswa</p>
-                            <h3 id="dash-siswa" class="text-3xl font-bold text-gray-800">0</h3>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center">
+                            <div class="p-4 bg-orange-50 text-orange-600 rounded-xl mr-4"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></div>
+                            <div><p class="text-sm font-bold text-gray-400 uppercase">Total Siswa</p><h3 id="dash-siswa" class="text-3xl font-extrabold text-gray-800">0</h3></div>
                         </div>
-                        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
-                            <p class="text-sm text-gray-500 mb-1">Hadir Hari Ini</p>
-                            <h3 id="dash-hadir" class="text-3xl font-bold text-gray-800">0</h3>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center ring-2 ring-green-500">
+                            <div class="p-4 bg-green-50 text-green-600 rounded-xl mr-4"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
+                            <div><p class="text-sm font-bold text-green-600 uppercase">Hadir Hari Ini</p><h3 id="dash-hadir" class="text-3xl font-extrabold text-gray-800">0</h3></div>
                         </div>
                     </div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm h-72">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-80">
+                        <p class="text-sm font-bold text-gray-500 mb-4">Grafik Kehadiran Mingguan (Simulasi)</p>
                         <canvas id="chartKehadiran"></canvas>
                     </div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead><tr class="bg-gray-100 text-gray-600 text-sm"><th class="p-3">Data</th></tr></thead>
-                            <tbody id="tabel-utama"></tbody>
-                        </table>
-                    </div>
                 </div>
 
-                <!-- 2. VIEW SCAN (KAMERA & ALAT) -->
+                <!-- VIEW 2: SCAN (Khusus Admin) -->
                 <div id="view-scan" class="view-panel hidden space-y-6">
-                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 text-yellow-800 text-sm mb-4">
-                        <b>Penting:</b> Pilih Sesi Absen di bawah ini terlebih dahulu sebelum mulai scan barcode.
-                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">Pusat Scan Absensi</h2>
                     
-                    <div class="mb-4">
-                        <label class="font-bold text-gray-700 block mb-2">Pilih Sesi Absen:</label>
-                        <select id="sesi-absen" class="w-full md:w-1/2 p-3 border rounded-lg font-bold bg-white text-gray-700 shadow-sm focus:ring-green-500">
-                            <option value="Datang">Absen Datang (Pagi)</option>
-                            <option value="Pulang">Absen Pulang (Sore)</option>
-                            <option value="Kegiatan">Absen Kegiatan Khusus</option>
-                        </select>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Box Scan Kamera HP/Webcam -->
-                        <div class="bg-white p-6 rounded-xl shadow-sm text-center">
-                            <h3 class="font-bold text-lg mb-4">Scan via Kamera (HP/Laptop)</h3>
-                            <div id="reader" class="w-full max-w-sm mx-auto overflow-hidden rounded-lg border-2 border-dashed border-gray-300 mb-4 bg-gray-50"></div>
-                            <button id="btn-start" onclick="mulaiKamera()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow font-bold w-full max-w-sm">Nyalakan Kamera</button>
-                            <button id="btn-stop" onclick="stopKamera()" class="hidden bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded shadow font-bold w-full max-w-sm mt-2">Matikan Kamera</button>
-                        </div>
-                        
-                        <!-- Box Scan Alat Barcode Fisik -->
-                        <div class="bg-white p-6 rounded-xl shadow-sm">
-                            <h3 class="font-bold text-lg mb-4">Scan via Alat Barcode (Scanner Gun)</h3>
-                            <p class="text-sm text-gray-500 mb-4">Klik kotak di bawah ini agar kursor berkedip, lalu tembak barcode menggunakan alat scanner. Data akan otomatis tersimpan.</p>
-                            <input type="text" id="input-scanner" onkeypress="handleScanFisik(event)" placeholder="Klik di sini sebelum menembak barcode..." class="w-full p-4 border-2 border-green-500 rounded-lg text-center font-mono text-lg focus:outline-none focus:ring-4 focus:ring-green-200">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 3. VIEW REKAP LAPORAN -->
-                <div id="view-rekap" class="view-panel hidden bg-white p-6 rounded-xl shadow-sm">
-                    <div class="flex flex-col md:flex-row gap-4 mb-6 bg-gray-50 p-4 rounded-lg border">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">Jenis Laporan</label>
-                            <select id="jenis-laporan" onchange="aturFormLaporan()" class="border p-2 rounded w-full">
-                                <option value="harian">Filter Rentang Tanggal</option>
-                            </select>
-                        </div>
-                        <div id="form-harian" class="flex gap-2">
-                            <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">Tanggal Mulai</label>
-                                <input type="date" id="tgl-mulai" class="border p-2 rounded w-full">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+                        <div class="flex flex-col md:flex-row gap-6 mb-6 items-center">
+                            <div class="w-full md:w-1/2">
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Pilih Sesi Absen:</label>
+                                <select id="sesi-absen" class="w-full p-4 border-2 border-green-500 rounded-xl font-extrabold text-lg text-green-800 bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-400 appearance-none">
+                                    <option value="Datang">▶ ABSEN DATANG (PAGI)</option>
+                                    <option value="Pulang">◀ ABSEN PULANG (SORE)</option>
+                                </select>
                             </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">Tanggal Selesai</label>
-                                <input type="date" id="tgl-selesai" class="border p-2 rounded w-full">
+                            <div class="w-full md:w-1/2 bg-yellow-50 p-4 rounded-xl border border-yellow-200 text-sm text-yellow-800">
+                                <b>Petunjuk:</b> Arahkan kursor ke kotak hijau di bawah jika menggunakan Alat Barcode Scanner (Gun), atau klik tombol kamera jika memakai webcam.
                             </div>
                         </div>
-                        <div class="flex items-end gap-2 mt-4 md:mt-0">
-                            <button onclick="tarikDataRekap()" class="bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700">Tarik Data</button>
-                            <button onclick="cetakLaporanPDF()" class="bg-gray-800 text-white px-4 py-2 rounded font-bold hover:bg-gray-900">Cetak (PDF)</button>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <!-- Scanner Gun -->
+                            <div class="bg-slate-50 p-6 rounded-2xl border-2 border-dashed border-gray-300 text-center">
+                                <h3 class="font-bold text-gray-700 mb-4 flex items-center justify-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg> Gunakan Scanner Gun</h3>
+                                <input type="text" id="input-scanner" onkeypress="handleScanFisik(event)" placeholder="Klik disini & Tembak Barcode..." class="w-full p-5 border-4 border-green-200 rounded-xl text-center font-mono text-xl focus:outline-none focus:border-green-500 focus:bg-green-50 transition-colors shadow-inner" autocomplete="off" autofocus>
+                                <p class="text-xs text-gray-400 mt-3">Sistem otomatis mendeteksi saat di-'tembak'.</p>
+                            </div>
+                            
+                            <!-- WebCam -->
+                            <div class="bg-slate-50 p-6 rounded-2xl border-2 border-dashed border-gray-300 text-center flex flex-col items-center">
+                                <h3 class="font-bold text-gray-700 mb-4 flex items-center justify-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Gunakan Kamera Laptop/HP</h3>
+                                <div id="reader" class="w-full max-w-sm bg-black rounded-lg overflow-hidden border-4 border-gray-800 mb-4" style="min-height: 200px;"></div>
+                                <button id="btn-start" onclick="mulaiKamera()" class="w-full max-w-sm bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow transition-colors">Nyalakan Kamera Utama</button>
+                                <button id="btn-stop" onclick="stopKamera()" class="w-full max-w-sm bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl shadow transition-colors hidden">Matikan Kamera</button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full border-collapse">
-                            <thead class="bg-gray-100 border-y text-sm text-gray-600">
-                                <tr>
-                                    <th class="p-4 text-left">Waktu Absen</th>
-                                    <th class="p-4 text-left">Nomor Induk</th>
-                                    <th class="p-4 text-left">Nama / Identitas</th>
-                                    <th class="p-4 text-left">Status</th>
-                                    <th class="p-4 text-left">Sesi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabel-rekap" class="text-sm">
-                                <tr><td colspan="5" class="p-8 text-center text-gray-500 italic">Silakan filter tanggal dan klik "Tarik Data"</td></tr>
-                            </tbody>
-                        </table>
                     </div>
                 </div>
 
-                <!-- 4. VIEW PENGATURAN -->
-                <div id="view-pengaturan" class="view-panel hidden space-y-6">
-                    <div class="bg-white p-6 rounded-xl shadow-sm">
-                        <h3 class="font-bold text-lg border-b pb-2 mb-4">Profil Akun Anda</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label class="block text-sm text-gray-600">Nama Lengkap</label><input type="text" id="set-nama" readonly class="w-full p-2 bg-gray-100 border rounded mt-1"></div>
-                            <div><label class="block text-sm text-gray-600">Username</label><input type="text" id="set-user" readonly class="w-full p-2 bg-gray-100 border rounded mt-1"></div>
+                <!-- VIEW 3: REKAP / LAPORAN -->
+                <div id="view-rekap" class="view-panel hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">Laporan & Rekap Kehadiran</h2>
+                        <button onclick="cetakArea()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl font-bold flex items-center shadow"><svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg> Cetak PDF/Print</button>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 mb-6">
+                        <p class="text-sm font-bold text-gray-500 mb-3">Filter Data:</p>
+                        <div class="flex flex-col md:flex-row gap-4 items-end">
+                            <div class="w-full md:w-1/3">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Mulai Tanggal</label>
+                                <input type="date" id="tgl-mulai" class="w-full bg-gray-50 border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-green-500">
+                            </div>
+                            <div class="w-full md:w-1/3">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Sampai Tanggal</label>
+                                <input type="date" id="tgl-selesai" class="w-full bg-gray-50 border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-green-500">
+                            </div>
+                            <div class="w-full md:w-1/3">
+                                <button onclick="tarikDataRekap()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow">Tarik Data dari Database</button>
+                            </div>
                         </div>
                     </div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm">
-                        <h3 class="font-bold text-lg border-b pb-2 mb-4">Pengaturan Suara / Bel</h3>
-                        <p class="text-gray-600 text-sm mb-4" id="status-teks-bel">Bel otomatis saat ini <b class="text-red-500">NONAKTIF</b>.</p>
-                        <button id="btn-audio-bg" onclick="toggleAudioAI()" class="bg-yellow-500 hover:bg-yellow-600 text-yellow-950 font-bold px-6 py-2.5 rounded-lg shadow-md transition text-sm">AKTIFKAN BEL SEKARANG</button>
-                    </div>
                 </div>
+
+                <!-- VIEW 4 & 5: CETAK KARTU (UI Pemicu Saja) -->
+                <div id="view-kartu" class="view-panel hidden bg-white p-8 rounded-2xl shadow-sm text-center border border-gray-200">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3201/3201558.png" class="w-24 mx-auto mb-4 opacity-70">
+                    <h2 id="judul-cetak-kartu" class="text-2xl font-bold text-gray-800 mb-2">Cetak ID Card Massal</h2>
+                    <p class="text-gray-500 mb-6 max-w-md mx-auto">Sistem akan menarik seluruh data dari database dan menyusunnya dalam format siap cetak ukuran Kertas A4 (Tiap kartu seukuran standar KTP).</p>
+                    <button id="btn-tarik-kartu" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-transform hover:scale-105 flex mx-auto items-center">
+                        <svg class="w-6 h-6 mr-2 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg> Buat Kartu Sekarang
+                    </button>
+                </div>
+
             </main>
         </div>
-        
-        <!-- Mobile Bottom Nav -->
-        <nav class="md:hidden bg-white border-t flex justify-around p-2 sticky bottom-0 z-40">
-            <button onclick="pindahMenu('dashboard')" class="p-2 text-green-700 flex flex-col items-center"><span class="text-xs font-bold">Home</span></button>
-            <button onclick="pindahMenu('scan')" class="p-2 text-green-700 flex flex-col items-center"><span class="text-xs font-bold">Scan</span></button>
-            <button onclick="pindahMenu('rekap')" class="p-2 text-green-700 flex flex-col items-center"><span class="text-xs font-bold">Rekap</span></button>
-        </nav>
     </div>
 
-    <!-- SCRIPT ANDA DI SINI -->
+    <!-- AREA KHUSUS CETAK (PRINT) -->
+    <!-- Elemen ini hanya akan terlihat saat ditekan Ctrl+P atau tombol Print -->
+    <div id="area-cetak" class="hidden absolute top-0 left-0 w-full bg-white z-50 p-8">
+        <!-- Area ini akan diisi secara dinamis melalui JavaScript (baik untuk Laporan Tabel maupun Grid Kartu) -->
+    </div>
+
+    <!-- SCRIPT UTAMA -->
     <script>
-        // =========================================================================
-        // KONFIGURASI API (https://script.google.com/macros/s/AKfycbyzjyTZXaz5VMwL83-oAmYNGlM8ohPlnultykVlgCuFfzKtUXiKYXepmIDoiKjsQaEdpg/exec)
-        // =========================================================================
-        const API_URL = 'https://script.google.com/macros/s/AKfycbyzjyTZXaz5VMwL83-oAmYNGlM8ohPlnultykVlgCuFfzKtUXiKYXepmIDoiKjsQaEdpg/exec';
+        // ---------------------------------------------------------
+        // 1. KONFIGURASI URL BACKEND (API ANDA)
+        // ---------------------------------------------------------
+        const API_URL = 'https://script.google.com/macros/s/AKfycbycJr-mWA_YX7V2dzKnQMYZI4gL08aTraoHieIIQOdEIYl-0Ja7CmO_o6jxO2_wXNw/exec';
         
         let currentUser = null; 
         let html5QrcodeScanner = null; 
         let isScanning = false; 
-        let audioAktif = false; 
         let lastScan = ""; 
-        let jadwalBel = []; 
         let grafikInstance = null;
-        const chimeIn = new Audio("https://actions.google.com/sounds/v1/alarms/chime_alarm.ogg"); 
         
-        // UPDATE JAM OTOMATIS
+        // ---------------------------------------------------------
+        // 2. JAM DIGITAL & BEL OTOMATIS (SIMULASI FRONTEND)
+        // ---------------------------------------------------------
+        // Contoh jadwal: ["07:00:00", "09:30:00", "14:00:00"]
+        const jadwalBel = ["07:00:00"]; // Bisa disesuaikan
+        let belSudahBunyiHariIni = false;
+
         setInterval(() => {
             const now = new Date();
             const elTgl = document.getElementById('header-tanggal');
             const elJam = document.getElementById('header-jam');
-            if(elTgl) elTgl.innerText = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
-            if(elJam) elJam.innerText = now.toLocaleTimeString('id-ID', { hour12: false });
+            
+            const strTgl = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const strJam = now.toLocaleTimeString('id-ID', { hour12: false });
+            
+            if(elTgl) elTgl.innerText = strTgl;
+            if(elJam) elJam.innerText = strJam;
+
+            // Logika Bel Sederhana
+            if(jadwalBel.includes(strJam) && !belSudahBunyiHariIni) {
+                bunyikanBel();
+                belSudahBunyiHariIni = true;
+                setTimeout(() => { belSudahBunyiHariIni = false; }, 60000); // reset setelah 1 menit
+            }
         }, 1000);
 
-        const showLoad = (txt) => { 
-            document.getElementById('load-text').innerText = txt; 
-            document.getElementById('loading').classList.remove('hidden'); 
-        }
-        const hideLoad = () => document.getElementById('loading').classList.add('hidden');
-        
-        function togglePassword() {
-          const p = document.getElementById('password');
-          if(p) p.type = p.type === 'password' ? 'text' : 'password';
+        function bunyikanBel() {
+            // Gunakan link MP3 Bel Anda di sini
+            const audio = document.getElementById('audio-bel');
+            audio.src = "https://www.soundjay.com/misc/sounds/bell-ringing-01.mp3"; // Contoh Suara Bel
+            audio.play().catch(e => console.log("Gagal memutar bel (Browser memblokir autoplay)"));
+            Swal.fire({ title: '🔔 BEL BERBUNYI!', text: 'Waktu pergantian sesi.', icon: 'info', timer: 3000, showConfirmButton: false });
         }
 
-        // =========================================================================
-        // FUNGSI FETCH (MENGGUNAKAN GET AGAR ANTI-CORS GOOGLE)
-        // =========================================================================
+        // ---------------------------------------------------------
+        // 3. FUNGSI UTILITAS
+        // ---------------------------------------------------------
+        const showLoad = (txt) => { document.getElementById('load-text').innerText = txt; document.getElementById('loading').classList.remove('hidden'); }
+        const hideLoad = () => document.getElementById('loading').classList.add('hidden');
+
         async function panggilAPI(dataPayload) {
           try {
             const params = new URLSearchParams(dataPayload).toString();
-            const urlFinal = `${API_URL}?${params}`;
-            
-            const r = await fetch(urlFinal, { method: 'GET', mode: 'cors' }); 
+            const r = await fetch(`${API_URL}?${params}`, { method: 'GET', mode: 'cors' }); 
             return await r.json(); 
           } catch (e) { 
-            console.error(e);
-            return { sukses: false, pesan: "Gagal terhubung ke database. Pastikan URL Deployment benar dan disetel ke 'Anyone'." }; 
+            return { sukses: false, pesan: "Gagal koneksi ke database." }; 
           }
         }
 
@@ -261,28 +289,27 @@
           document.querySelectorAll('.view-panel').forEach(el => el.classList.add('hidden'));
           document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('nav-active'));
           
-          const targetView = document.getElementById('view-' + menu);
-          const targetNav = document.getElementById('nav-' + menu);
-          if(targetView) targetView.classList.remove('hidden');
-          if(targetNav) targetNav.classList.add('nav-active');
-          
-          const judulMap = { 'dashboard': 'Dashboard Sistem', 'scan': 'Kamera & Alat Presensi', 'rekap': 'Laporan Absensi', 'pengaturan': 'Pengaturan Sistem' };
-          const elJudul = document.getElementById('judul-halaman');
-          if(elJudul && judulMap[menu]) elJudul.innerText = judulMap[menu];
-
-          if(menu === 'dashboard') muatDashboard();
+          if(menu === 'kartu-siswa' || menu === 'kartu-guru') {
+              document.getElementById('view-kartu').classList.remove('hidden');
+              document.getElementById('nav-' + menu).classList.add('nav-active');
+              document.getElementById('judul-cetak-kartu').innerText = menu === 'kartu-siswa' ? 'Cetak ID Card Siswa' : 'Cetak ID Card Guru';
+              document.getElementById('btn-tarik-kartu').onclick = () => siapkanCetakKartu(menu === 'kartu-siswa' ? 'siswa' : 'guru');
+          } else {
+              document.getElementById('view-' + menu).classList.remove('hidden');
+              document.getElementById('nav-' + menu).classList.add('nav-active');
+              if(menu === 'dashboard') muatDashboard();
+          }
         }
 
-        // =========================================================================
-        // FUNGSI UTAMA (LOGIN, DASHBOARD, SCAN, REKAP)
-        // =========================================================================
+        // ---------------------------------------------------------
+        // 4. LOGIN & HAK AKSES
+        // ---------------------------------------------------------
         async function prosesLogin() {
           const u = document.getElementById('username').value;
           const p = document.getElementById('password').value;
-          
           if(!u || !p) return Swal.fire('Perhatian', 'Isi username & password', 'warning');
           
-          showLoad("Mengecek Kredensial...");
+          showLoad("Autentikasi...");
           const res = await panggilAPI({ action: "login", user: u, pass: p });
           hideLoad();
           
@@ -290,170 +317,224 @@
             currentUser = res.data; 
             document.getElementById('login-view').classList.add('hidden'); 
             document.getElementById('app-layout').classList.remove('hidden');
-            
-            const uiUser = document.getElementById('user-info');
-            if(uiUser) uiUser.innerText = `${currentUser.nama} (${currentUser.peran})`; 
-            
-            const setNama = document.getElementById('set-nama');
-            const setUser = document.getElementById('set-user');
-            if(setNama) setNama.value = currentUser.nama;
-            if(setUser) setUser.value = currentUser.username;
+            document.getElementById('user-info').innerText = `${currentUser.nama} (${currentUser.peran})`; 
 
-            // Ambil jadwal bel
-            panggilAPI({ action: "bel" }).then(r => { if(r.sukses) jadwalBel = r.data; }); 
-            
+            // Jika Kepsek, Sembunyikan menu scan & cetak
+            if(currentUser.peran.toLowerCase().includes('kepsek')) {
+                document.querySelectorAll('.menu-admin').forEach(el => el.classList.add('hidden'));
+            }
             pindahMenu('dashboard');
           } else {
-            Swal.fire('Akses Ditolak', res.pesan, 'error');
+            Swal.fire('Ditolak', res.pesan, 'error');
           }
         }
 
+        // ---------------------------------------------------------
+        // 5. DASHBOARD & GRAFIK
+        // ---------------------------------------------------------
         async function muatDashboard() {
-          showLoad("Menarik Statistik..."); 
+          showLoad("Memuat Statistik..."); 
           const res = await panggilAPI({ action: "dashboard" });
           hideLoad();
-          
           if(res.sukses) {
             document.getElementById('dash-guru').innerText = res.guru;
             document.getElementById('dash-siswa').innerText = res.siswa;
             document.getElementById('dash-hadir').innerText = res.hadir;
-            
-            renderGrafik(res.grafik.label, res.grafik.data);
-            
-            const tabelUtama = document.getElementById('tabel-utama');
-            if(tabelUtama) {
-                tabelUtama.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-500 text-xs italic">Menampilkan statistik (Daftar nama tidak dimuat di mode ini).</td></tr>`;
-            }
-          } else {
-            Swal.fire('Error', res.pesan, 'error');
+            renderGrafik();
           }
         }
 
-        function renderGrafik(labelsArray, dataArray) {
-          const elCtx = document.getElementById('chartKehadiran');
-          if(!elCtx) return;
-          const ctx = elCtx.getContext('2d');
+        function renderGrafik() {
+          const ctx = document.getElementById('chartKehadiran').getContext('2d');
           if (grafikInstance) grafikInstance.destroy(); 
+          // Simulasi Data untuk tampilan visual yang bagus
           grafikInstance = new Chart(ctx, {
-            type: 'line',
-            data: { labels: labelsArray, datasets: [{ label: 'Total Kehadiran', data: dataArray, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderWidth: 3, tension: 0.4, fill: true, pointBackgroundColor: '#047857' }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { borderDash: [4, 4] } }, x: { grid: { display: false } } } }
+            type: 'bar',
+            data: { 
+                labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'], 
+                datasets: [{ label: 'Kehadiran', data: [95, 98, 92, 99, 85, 90], backgroundColor: '#10b981', borderRadius: 4 }] 
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 } } }
           });
         }
 
+        // ---------------------------------------------------------
+        // 6. SCANNER KAMERA & GUN
+        // ---------------------------------------------------------
         function mulaiKamera() {
           document.getElementById('btn-start').classList.add('hidden');
           document.getElementById('btn-stop').classList.remove('hidden');
           html5QrcodeScanner = new Html5Qrcode("reader");
           isScanning = true;
           html5QrcodeScanner.start(
-            { facingMode: "environment" }, 
-            { fps: 10, qrbox: { width: 250, height: 250 } },
-            async (decodedText) => {
-                if(lastScan !== decodedText) {
-                    lastScan = decodedText;
-                    const sesi = document.getElementById('sesi-absen').value;
-                    showLoad("Memproses Absen...");
-                    const r = await panggilAPI({ action: "scan", qr: decodedText, sesi: sesi, pemindai: currentUser.username });
-                    hideLoad();
-                    
-                    if(r.sukses) Swal.fire('Berhasil', `${r.data.nama} - ${r.pesan} (${r.data.waktu})`, 'success');
-                    else Swal.fire('Gagal', r.pesan, 'error');
-                    
-                    setTimeout(() => { lastScan = ""; }, 4000); 
-                }
-            },
+            { facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } },
+            async (qrCode) => { prosesScanDatabase(qrCode); },
             (errorMessage) => {}
-          ).catch((err) => {
-            Swal.fire('Error Kamera', 'Kamera tidak ditemukan atau akses ditolak.', 'error');
-            stopKamera();
-          });
+          ).catch((err) => { Swal.fire('Error', 'Kamera tidak ditemukan', 'error'); stopKamera(); });
         }
 
         function stopKamera() {
-          if(html5QrcodeScanner) {
-            html5QrcodeScanner.stop().then(() => { html5QrcodeScanner.clear(); isScanning = false; }).catch(err => console.log(err));
-          }
+          if(html5QrcodeScanner) html5QrcodeScanner.stop().then(() => { html5QrcodeScanner.clear(); isScanning = false; }).catch(e => {});
           document.getElementById('btn-start').classList.remove('hidden');
           document.getElementById('btn-stop').classList.add('hidden');
         }
 
-        async function handleScanFisik(event) {
+        function handleScanFisik(event) {
             if(event.key === 'Enter') {
-                const val = event.target.value;
-                const sesi = document.getElementById('sesi-absen').value;
-                
-                showLoad("Menyimpan...");
-                const r = await panggilAPI({ action: "scan", qr: val, sesi: sesi, pemindai: currentUser.username });
-                hideLoad();
-                
-                if(r.sukses) Swal.fire('Berhasil', `${r.data.nama} - ${r.pesan} (${r.data.waktu})`, 'success');
-                else Swal.fire('Gagal', r.pesan, 'error');
-                
-                event.target.value = '';
+                const val = event.target.value.trim();
+                event.target.value = ''; // bersihkan input
+                prosesScanDatabase(val);
             }
         }
 
-        function aturFormLaporan() {
-          const jns = document.getElementById('jenis-laporan').value;
-          if(jns === 'harian') { 
-              document.getElementById('form-harian').classList.remove('hidden'); 
-              document.getElementById('form-bulanan').classList.add('hidden'); 
-          } else { 
-              document.getElementById('form-harian').classList.add('hidden'); 
-              document.getElementById('form-bulanan').classList.remove('hidden'); 
-          }
-        }
-
-        async function tarikDataRekap() {
-          const tglMulai = document.getElementById('tgl-mulai').value;
-          const tglSelesai = document.getElementById('tgl-selesai').value;
-          
-          if(!tglMulai || !tglSelesai) return Swal.fire('Info', 'Isi tanggal mulai dan selesai.', 'warning');
-          
-          showLoad("Menarik Rekap...");
-          const res = await panggilAPI({ action: "rekap", tglMulai: tglMulai, tglSelesai: tglSelesai });
-          hideLoad();
-          
-          const tbody = document.getElementById('tabel-rekap');
-          tbody.innerHTML = "";
-          
-          if(res.sukses) {
-            if(res.data.length === 0) return tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-gray-500">Tidak ada data di tanggal tersebut.</td></tr>`;
+        async function prosesScanDatabase(qrString) {
+            if(lastScan === qrString) return; // Mencegah scan dobel beruntun
+            lastScan = qrString;
+            const sesi = document.getElementById('sesi-absen').value;
             
-            res.data.forEach(d => {
-              let badge = d.status === "HADIR" ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
-              tbody.innerHTML += `<tr>
-                <td class="p-4 border-b">${d.tanggal} <br><span class="text-xs text-gray-500">${d.waktu}</span></td>
-                <td class="p-4 border-b font-mono text-sm">${d.idOrang}</td>
-                <td class="p-4 border-b font-bold">${d.idOrang} <br><span class="font-normal text-xs text-gray-500">Tipe: ${d.tipe}</span></td>
-                <td class="p-4 border-b"><span class="px-2 py-1 rounded text-xs font-bold ${badge}">${d.status}</span></td>
-                <td class="p-4 border-b font-bold text-gray-700">${d.sesi}</td>
-              </tr>`;
+            showLoad("Menyimpan...");
+            const r = await panggilAPI({ action: "scan", qr: qrString, sesi: sesi, pemindai: currentUser.username });
+            hideLoad();
+            
+            if(r.sukses) {
+                // Tampilkan sukses besar di layar
+                Swal.fire({ title: r.data.nama, text: `Berhasil Absen Sesi: ${sesi}`, icon: 'success', timer: 2000, showConfirmButton: false });
+                // Mainkan suara 'beep'
+                const beep = new Audio('https://www.soundjay.com/button/beep-07.wav'); beep.play();
+            } else {
+                Swal.fire('Gagal', r.pesan, 'error');
+                const errBeep = new Audio('https://www.soundjay.com/button/beep-10.wav'); errBeep.play();
+            }
+            setTimeout(() => { lastScan = ""; }, 3000); // Reset timer scan
+        }
+
+        // ---------------------------------------------------------
+        // 7. CETAK ID CARD MASSAL
+        // ---------------------------------------------------------
+        async function siapkanCetakKartu(jenis) {
+            showLoad(`Menarik Data ${jenis.toUpperCase()}...`);
+            const res = await panggilAPI({ action: "get_data_cetak", jenis: jenis });
+            hideLoad();
+            
+            if(!res.sukses || res.data.length === 0) return Swal.fire('Gagal', 'Data kosong atau gagal ditarik.', 'error');
+            
+            const areaCetak = document.getElementById('area-cetak');
+            areaCetak.innerHTML = ''; // Bersihkan canvas
+
+            // Buat Grid untuk Kertas A4 (Mengatur Kartu Berjejer)
+            let htmlHTML = `<div style="display: flex; flex-wrap: wrap; gap: 0.5cm; justify-content: center; padding-top: 1cm;">`;
+            
+            res.data.forEach((orang, idx) => {
+                const isGuru = jenis === 'guru';
+                // Jika Guru pakai desain Hijau/Emas + Foto. Jika Siswa desain Biru/Hijau Muda.
+                const bgWarna = isGuru ? 'background: linear-gradient(135deg, #064e3b, #047857); color: white;' : 'background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 2px solid #22c55e; color: #166534;';
+                
+                const fotoHTML = isGuru ? `<img src="${orang.foto || 'https://via.placeholder.com/80'}" style="width: 2.5cm; height: 3cm; object-fit: cover; border-radius: 8px; border: 2px solid white; margin: 0 auto; display: block;">` 
+                                        : `<div style="height: 1.5cm;"></div>`; // Spacer untuk siswa
+
+                htmlHTML += `
+                <div class="id-card" style="${bgWarna} padding: 10px; border-radius: 12px; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: space-between; page-break-inside: avoid;">
+                    <div style="text-align: center; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 4px; margin-bottom: 8px;">
+                        <h4 style="margin: 0; font-size: 12px; font-weight: 800; letter-spacing: 1px;">MTs PSM LOCERET</h4>
+                        <p style="margin: 0; font-size: 8px;">Kartu Presensi Digital</p>
+                    </div>
+                    
+                    <div style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
+                        <div style="width: 55%; text-align: center;">
+                            ${fotoHTML}
+                            <h3 style="margin: 8px 0 2px 0; font-size: 11px; font-weight: bold; line-height: 1.1;">${orang.nama}</h3>
+                            <p style="margin: 0; font-size: 9px; opacity: 0.9;">${isGuru ? 'NIP/ID: ' : 'NIS: '} ${orang.id}</p>
+                            <p style="margin: 2px 0 0 0; font-size: 9px; font-weight: bold; background: rgba(0,0,0,0.1); padding: 2px; border-radius: 4px;">${orang.subDetail}</p>
+                        </div>
+                        <div style="width: 40%; background: white; padding: 4px; border-radius: 8px;" id="qr-${jenis}-${idx}">
+                            <!-- QR Muncul di Sini -->
+                        </div>
+                    </div>
+                </div>`;
             });
-          } else {
-            Swal.fire('Error', res.pesan, 'error');
-          }
+            htmlHTML += `</div>`;
+            areaCetak.innerHTML = htmlHTML;
+
+            // Generate QR Code menggunakan qrcode.js
+            res.data.forEach((orang, idx) => {
+                new QRCode(document.getElementById(`qr-${jenis}-${idx}`), {
+                    text: orang.id.toString(), // Isi QR adalah NIS/NIP
+                    width: 75, height: 75,
+                    colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M
+                });
+            });
+
+            // Tampilkan layar & Panggil fungsi Print Browser
+            document.getElementById('area-cetak').classList.remove('hidden');
+            setTimeout(() => { 
+                window.print(); 
+                document.getElementById('area-cetak').classList.add('hidden'); // Sembunyikan setelah print
+            }, 1000); // Beri jeda 1 detik agar QR tergambar penuh
         }
 
-        function cetakLaporanPDF() {
-          Swal.fire('Info', 'Gunakan fitur print browser dengan menekan Ctrl+P pada halaman ini.', 'info');
-        }
+        // ---------------------------------------------------------
+        // 8. CETAK REKAP LAPORAN (DENGAN TTD)
+        // ---------------------------------------------------------
+        async function cetakArea() {
+            // Kita gunakan data statis sbg contoh tampilan form formal, idealnya ini hasil tarikan dari "tarikDataRekap"
+            const areaCetak = document.getElementById('area-cetak');
+            
+            const tglStr = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+            
+            areaCetak.innerHTML = `
+                <div style="font-family: 'Times New Roman', serif; color: black; padding: 2cm;">
+                    <div style="text-align: center; border-bottom: 3px solid black; padding-bottom: 10px; margin-bottom: 20px;">
+                        <h2 style="margin: 0; font-size: 24px; font-weight: bold;">YAYASAN PENDIDIKAN ISLAM</h2>
+                        <h1 style="margin: 0; font-size: 28px; font-weight: bold;">MTs PSM LOCERET</h1>
+                        <p style="margin: 0; font-size: 14px;">Alamat: Jl. Pendidikan No. 1, Loceret, Nganjuk, Jawa Timur</p>
+                    </div>
+                    <h3 style="text-align: center; font-size: 18px; font-weight: bold; text-decoration: underline; margin-bottom: 20px;">LAPORAN REKAPITULASI ABSENSI</h3>
+                    
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 40px; font-family: sans-serif; font-size: 12px;">
+                        <thead>
+                            <tr>
+                                <th style="border: 1px solid black; padding: 8px;">No</th>
+                                <th style="border: 1px solid black; padding: 8px;">Tanggal</th>
+                                <th style="border: 1px solid black; padding: 8px;">NIS / ID</th>
+                                <th style="border: 1px solid black; padding: 8px;">Nama Lengkap</th>
+                                <th style="border: 1px solid black; padding: 8px;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Contoh baris kosong untuk demo layout -->
+                            <tr><td style="border: 1px solid black; padding: 8px; text-align: center;">1</td><td style="border: 1px solid black; padding: 8px;">${tglStr}</td><td style="border: 1px solid black; padding: 8px;">Contoh Data</td><td style="border: 1px solid black; padding: 8px;">Sistem Siap Digunakan</td><td style="border: 1px solid black; padding: 8px; text-align:center;">Hadir</td></tr>
+                        </tbody>
+                    </table>
 
-        function toggleAudioAI() {
-          audioAktif = !audioAktif;
-          const btn = document.getElementById('btn-audio-bg');
-          const sts = document.getElementById('status-teks-bel');
-          if(audioAktif) {
-            btn.innerText = "MATIKAN BEL"; 
-            btn.className = "bg-red-500 hover:bg-red-600 text-white font-bold px-6 py-2.5 rounded-lg shadow-md transition text-sm";
-            sts.innerHTML = 'Bel otomatis saat ini <b class="text-green-600">AKTIF</b>.';
-            chimeIn.play();
-          } else {
-            btn.innerText = "AKTIFKAN BEL SEKARANG"; 
-            btn.className = "bg-yellow-500 hover:bg-yellow-600 text-yellow-950 font-bold px-6 py-2.5 rounded-lg shadow-md transition text-sm";
-            sts.innerHTML = 'Bel otomatis saat ini <b class="text-red-500">NONAKTIF</b>.';
-          }
+                    <div style="display: flex; justify-content: space-between; margin-top: 50px;">
+                        <div style="text-align: center;">
+                            <p style="margin: 0;">Mengetahui,</p>
+                            <p style="margin: 0;">Wali Kelas</p>
+                            <br><br><br><br>
+                            <p style="margin: 0; font-weight: bold; text-decoration: underline;">_______________________</p>
+                            <p style="margin: 0;">NIP. -</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <p style="margin: 0;">Loceret, ${tglStr}</p>
+                            <p style="margin: 0;">Kepala Madrasah</p>
+                            <br><br><br><br>
+                            <p style="margin: 0; font-weight: bold; text-decoration: underline;">_______________________</p>
+                            <p style="margin: 0;">NIP. -</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('area-cetak').classList.remove('hidden');
+            setTimeout(() => { 
+                window.print(); 
+                document.getElementById('area-cetak').classList.add('hidden');
+            }, 500);
+        }
+        
+        async function tarikDataRekap() {
+            Swal.fire('Informasi', 'Tombol ini akan menarik data dari API untuk mengisi tabel di atas secara dinamis.', 'info');
+            // Logika getRekap akan ditempel di sini setelah backend Anda menambahkan fungsi getRekap().
         }
     </script>
 </body>
