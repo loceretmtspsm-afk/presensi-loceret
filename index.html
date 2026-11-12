@@ -10,6 +10,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Tambahan Library untuk Export Word (.docx) -->
+    <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         .nav-active { background-color: #047857; color: white; font-weight: bold; }
         @media print {
@@ -81,6 +84,16 @@
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center"><div class="p-4 bg-orange-50 text-orange-600 rounded-xl mr-4"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></div><div><p class="text-sm font-bold text-gray-400 uppercase">Total Siswa</p><h3 id="dash-siswa" class="text-3xl font-extrabold text-gray-800">0</h3></div></div>
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center ring-2 ring-green-500"><div class="p-4 bg-green-50 text-green-600 rounded-xl mr-4"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><div><p class="text-sm font-bold text-green-600 uppercase">Hadir Hari Ini</p><h3 id="dash-hadir" class="text-3xl font-extrabold text-gray-800">0</h3></div></div>
                     </div>
+
+                    <!-- PENGATURAN BEL -->
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-6 max-w-2xl">
+                        <h3 class="font-bold text-gray-800 mb-2">Pengaturan Waktu Bel Otomatis</h3>
+                        <p class="text-xs text-gray-500 mb-3">Format jam (HH:MM:SS), pisahkan dengan koma.</p>
+                        <div class="flex gap-2">
+                            <input type="text" id="input-jadwal-bel" class="flex-1 p-3 border-2 border-gray-200 rounded-xl focus:border-green-500 outline-none font-mono" value="07:00:00, 09:30:00, 15:00:00">
+                            <button onclick="simpanJadwalBel()" class="bg-gray-800 hover:bg-black text-white font-bold py-3 px-6 rounded-xl shadow">Simpan</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- VIEW: SCAN (KAMERA & GUN) -->
@@ -113,7 +126,7 @@
                     </div>
                 </div>
 
-                <!-- VIEW: REKAP (FITUR BARU FILTER PER KELAS) -->
+                <!-- VIEW: REKAP -->
                 <div id="view-rekap" class="view-panel hidden">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold text-gray-800">Rekap Kehadiran (Per Kelas)</h2>
@@ -123,14 +136,12 @@
                         </div>
                     </div>
 
-                    <!-- KOTAK TARIK DATA -->
                     <div class="bg-white p-5 rounded-2xl shadow-sm border mb-4 flex gap-4 items-end">
                         <div class="w-1/3"><label class="block text-xs font-bold mb-1">Mulai</label><input type="date" id="tgl-mulai" class="w-full p-2 border rounded"></div>
                         <div class="w-1/3"><label class="block text-xs font-bold mb-1">Selesai</label><input type="date" id="tgl-selesai" class="w-full p-2 border rounded"></div>
                         <div class="w-1/3"><button onclick="tarikDataRekap()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded shadow">Tarik Database</button></div>
                     </div>
 
-                    <!-- KOTAK FILTER (BARU) -->
                     <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6 flex flex-col md:flex-row gap-4">
                         <div class="w-full md:w-1/3">
                             <label class="block text-xs font-bold text-indigo-800 mb-1">Pisahkan Kategori:</label>
@@ -141,7 +152,7 @@
                             </select>
                         </div>
                         <div class="w-full md:w-2/3">
-                            <label class="block text-xs font-bold text-indigo-800 mb-1">Filter Spesifik Kelas / Nama (Contoh: "7A" atau "Budi"):</label>
+                            <label class="block text-xs font-bold text-indigo-800 mb-1">Filter Spesifik Kelas / Nama:</label>
                             <input type="text" id="filter-teks" oninput="terapkanFilter()" placeholder="Ketik kelas atau nama untuk menyaring otomatis..." class="w-full p-2 border border-indigo-200 rounded font-bold bg-white">
                         </div>
                     </div>
@@ -154,7 +165,7 @@
                     </div>
                 </div>
 
-                <!-- VIEW: CETAK KARTU (TERMASUK TOMBOL WORD) -->
+                <!-- VIEW: CETAK KARTU -->
                 <div id="view-kartu" class="view-panel hidden bg-white p-8 rounded-2xl shadow-sm text-center border">
                     <h2 id="judul-cetak-kartu" class="text-2xl font-bold text-gray-800 mb-6">Cetak ID Card</h2>
                     <div class="flex justify-center gap-4 flex-wrap">
@@ -169,11 +180,9 @@
     <div id="area-cetak" class="hidden absolute top-0 left-0 w-full bg-white z-50 p-8"></div>
 
     <script>
-        const API_URL = 'https://script.google.com/macros/s/AKfycbycJr-mWA_YX7V2dzKnQMYZI4gL08aTraoHieIIQOdEIYl-0Ja7CmO_o6jxO2_wXNw/exec'; // Pastikan URL ini benar
+        const API_URL = 'https://script.google.com/macros/s/AKfycbycJr-mWA_YX7V2dzKnQMYZI4gL08aTraoHieIIQOdEIYl-0Ja7CmO_o6jxO2_wXNw/exec'; 
         
         let currentUser = null, html5Qrcode = null, isScanning = false, lastScan = "", jenisKartuAktif = "siswa"; 
-        
-        // VARIABEL FILTER
         let dataRekapTersimpan = []; 
         let dataRekapDitampilkan = []; 
 
@@ -292,7 +301,6 @@
             dataRekapDitampilkan = dataRekapTersimpan.filter(d => {
                 let matchKat = true;
                 const peranStr = (d.peran || "").toLowerCase();
-                
                 if (kat === 'guru') matchKat = peranStr.includes("guru");
                 if (kat === 'siswa') matchKat = peranStr.includes("siswa");
                 
@@ -329,7 +337,6 @@
 
         function downloadLaporanPDF() {
             if(dataRekapDitampilkan.length === 0) return Swal.fire('Info', 'Data kosong.', 'warning');
-            
             let barisTabel = '';
             dataRekapDitampilkan.forEach((d, i) => { barisTabel += `<tr><td style="border: 1px solid black; padding: 6px; text-align: center;">${i+1}</td><td style="border: 1px solid black; padding: 6px;">${d.tanggal} ${d.waktu}</td><td style="border: 1px solid black; padding: 6px;">${d.nama}</td><td style="border: 1px solid black; padding: 6px; text-align:center;">${d.peran}</td><td style="border: 1px solid black; padding: 6px; text-align:center;">${d.sesi}</td></tr>`; });
             
@@ -341,8 +348,22 @@
         }
 
         // ==========================================
-        // JAM REAL-TIME & BEL OTOMATIS
+        // PENGATURAN BEL DINAMIS
         // ==========================================
+        let jadwalBelArray = ["07:00:00", "09:30:00", "15:00:00"]; 
+        
+        if(localStorage.getItem('jadwalBelMadrasah')) {
+            jadwalBelArray = JSON.parse(localStorage.getItem('jadwalBelMadrasah'));
+            setTimeout(() => { if(document.getElementById('input-jadwal-bel')) document.getElementById('input-jadwal-bel').value = jadwalBelArray.join(", "); }, 1000);
+        }
+
+        function simpanJadwalBel() {
+            const inputVal = document.getElementById('input-jadwal-bel').value;
+            jadwalBelArray = inputVal.split(',').map(jam => jam.trim());
+            localStorage.setItem('jadwalBelMadrasah', JSON.stringify(jadwalBelArray));
+            Swal.fire('Tersimpan', 'Jadwal bel otomatis berhasil diperbarui!', 'success');
+        }
+
         setInterval(() => {
             const now = new Date();
             const waktuSekarang = now.toLocaleTimeString('id-ID', { hour12: false }); 
@@ -350,12 +371,9 @@
             if(document.getElementById('header-tanggal')) document.getElementById('header-tanggal').innerText = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             if(document.getElementById('header-jam')) document.getElementById('header-jam').innerText = waktuSekarang;
 
-            // PENGATURAN WAKTU BEL OTOMATIS 
-            const jadwalBel = ["07:00:00", "09:30:00", "15:00:00"]; 
-            
-            if (jadwalBel.includes(waktuSekarang)) {
+            if (jadwalBelArray.includes(waktuSekarang)) {
                 const bel = document.getElementById('audio-bel');
-                if(bel) bel.play().catch(e => console.log("Bel diblokir browser, pastikan Anda sudah interaksi dengan web ini."));
+                if(bel) bel.play().catch(e => console.log("Bel diblokir browser, pastikan sudah klik web."));
             }
         }, 1000);
 
@@ -411,26 +429,25 @@
                     html2pdf().set({ margin: 0.5, filename: `ID_Card_${jenisKartuAktif}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'cm', format: 'a4', orientation: 'portrait' } }).from(document.getElementById('konten-pdf-kartu')).save().then(() => { document.getElementById('area-cetak').classList.add('hidden'); }); 
                 }
                 else if (mode === 'word') {
-                    // Konversi Canvas QR Code ke Image agar terbaca di MS Word
                     const area = document.getElementById('area-cetak');
                     const canvases = area.querySelectorAll('canvas');
+                    
+                    // Ubah Canvas QR ke Image dengan Atribut Spesifik agar terbaca di MS Word
                     canvases.forEach(canvas => {
                         const img = document.createElement('img');
                         img.src = canvas.toDataURL('image/png');
-                        img.style.width = '70px'; img.style.height = '70px';
+                        img.setAttribute('width', '70');
+                        img.setAttribute('height', '70');
                         canvas.parentNode.replaceChild(img, canvas);
                     });
                     
-                    const htmlContent = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Cetak ID Card</title></head><body>${area.innerHTML}</body></html>`;
+                    // Bungkus ke format HTML yang kompatibel dengan Docx
+                    const content = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>${area.innerHTML}</body></html>`;
                     
-                    const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = `ID_Card_${jenisKartuAktif}.doc`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
+                    // Convert murni ke file .docx
+                    const converted = htmlDocx.asBlob(content, { orientation: 'portrait' });
+                    saveAs(converted, `ID_Card_${jenisKartuAktif}.docx`);
+                    
                     document.getElementById('area-cetak').classList.add('hidden');
                 }
             }, 800);
