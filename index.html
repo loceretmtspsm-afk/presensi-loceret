@@ -133,6 +133,7 @@
                         <div class="flex gap-2">
                             <button onclick="downloadLaporanExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow">Unduh Excel</button>
                             <button onclick="downloadLaporanPDF()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow">Unduh PDF</button>
+                            <button onclick="downloadLaporanWord()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow">Unduh Word</button>
                         </div>
                     </div>
 
@@ -268,8 +269,24 @@
             showLoad("Menyimpan...");
             const r = await panggilAPI({ action: "scan", qr: qrString, sesi: sesi, pemindai: currentUser.username });
             hideLoad();
+            
             if(r.sukses) {
                 document.getElementById('audio-sukses').play().catch(e=>console.log(e));
+                
+                // --- FITUR BARU: SUARA ROBOT (TEXT TO SPEECH) ---
+                const now = new Date();
+                const jam = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                
+                const isGuru = r.data.peran && r.data.peran.toLowerCase().includes('guru');
+                const sapaan = isGuru ? "Bapak atau Ibu " : "Kakak "; 
+                const teksSuara = `Terima kasih ${sapaan} ${r.data.nama}, sudah absen pada hari ini di jam ${jam}`;
+                
+                const speech = new SpeechSynthesisUtterance(teksSuara);
+                speech.lang = 'id-ID'; 
+                speech.rate = 0.9;     
+                window.speechSynthesis.speak(speech);
+                // ------------------------------------------------
+
                 Swal.fire({ title: 'BERHASIL ABSEN!', html: `<b style="font-size:1.8rem; color:#047857;">${r.data.nama}</b><br><br>Sesi: <b>${sesi}</b>`, icon: 'success', timer: 3000, showConfirmButton: false });
             } else {
                 document.getElementById('audio-gagal').play().catch(e=>console.log(e)); Swal.fire('Gagal', r.pesan, 'error');
@@ -347,6 +364,41 @@
             html2pdf().set({ margin: 1, filename: `Laporan_Absen.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'cm', format: 'a4', orientation: 'portrait' } }).from(document.getElementById('area-cetak')).save().then(() => { document.getElementById('area-cetak').classList.add('hidden'); });
         }
 
+        function downloadLaporanWord() {
+            if(dataRekapDitampilkan.length === 0) return Swal.fire('Info', 'Data kosong.', 'warning');
+            let barisTabel = '';
+            dataRekapDitampilkan.forEach((d, i) => { 
+                barisTabel += `<tr>
+                    <td style="border: 1px solid black; padding: 6px; text-align: center;">${i+1}</td>
+                    <td style="border: 1px solid black; padding: 6px;">${d.tanggal} ${d.waktu}</td>
+                    <td style="border: 1px solid black; padding: 6px;">${d.nama}</td>
+                    <td style="border: 1px solid black; padding: 6px; text-align:center;">${d.peran}</td>
+                    <td style="border: 1px solid black; padding: 6px; text-align:center;">${d.sesi}</td>
+                </tr>`; 
+            });
+            
+            const content = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Laporan Absensi</title></head><body>
+                <div style="font-family: 'Times New Roman', serif;">
+                    <h2 style="text-align: center;">LAPORAN PRESENSI MTs PSM LOCERET</h2>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top:20px;">
+                        <thead>
+                            <tr style="background-color: #e0e7ff;">
+                                <th style="border: 1px solid black; padding: 6px;">No</th>
+                                <th style="border: 1px solid black; padding: 6px;">Waktu</th>
+                                <th style="border: 1px solid black; padding: 6px;">Nama Lengkap</th>
+                                <th style="border: 1px solid black; padding: 6px;">Kelas/Jabatan</th>
+                                <th style="border: 1px solid black; padding: 6px;">Sesi</th>
+                            </tr>
+                        </thead>
+                        <tbody>${barisTabel}</tbody>
+                    </table>
+                </div>
+            </body></html>`;
+            
+            const converted = htmlDocx.asBlob(content);
+            saveAs(converted, 'Rekap_Absensi.docx');
+        }
+
         // ==========================================
         // PENGATURAN BEL DINAMIS
         // ==========================================
@@ -381,76 +433,82 @@
         // PROSES CETAK KARTU (PRINT, PDF, WORD)
         // ==========================================
         async function prosesCetakKartu(mode) {
-            showLoad(`Menyiapkan Kartu ${jenisKartuAktif}...`);
-            const res = await panggilAPI({ action: "get_data_cetak", jenis: jenisKartuAktif });
+            showLoad("Mengambil data kartu...");
+            const res = await panggilAPI({ action: "dataKartu", jenis: jenisKartuAktif });
             hideLoad();
-            if(!res.sukses || res.data.length === 0) return;
+
+            if (!res.sukses || !res.data || res.data.length === 0) {
+                return Swal.fire('Gagal', `Data ${jenisKartuAktif} tidak ditemukan atau kosong.`, 'error');
+            }
+
+            // Siapkan area cetak dengan styling untuk ID Card
+            let kartuHTML = `<div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; padding: 20px; background: white;">`;
             
-            const areaCetak = document.getElementById('area-cetak');
-            let htmlHTML = `<div id="konten-pdf-kartu" style="display: flex; flex-wrap: wrap; gap: 0.5cm; justify-content: center; padding: 0.5cm;">`;
-            
-            res.data.forEach((orang, idx) => {
-                const isGuru = jenisKartuAktif === 'guru';
-                const bgWarna = isGuru ? 'background-color: #047857; color: white;' : 'background-color: #dcfce7; border: 2px solid #22c55e; color: #166534;';
-                const fotoHTML = isGuru ? `<img src="${orang.foto || 'https://via.placeholder.com/80'}" style="width: 2.2cm; height: 2.8cm; object-fit: cover; border-radius: 6px; border: 2px solid white; margin: 0 auto; display: block;">` : `<div style="height: 1cm;"></div>`; 
-                
-                htmlHTML += `<div class="id-card" style="${bgWarna} width: 8.56cm; height: 5.4cm; padding: 10px; border-radius: 12px; font-family: sans-serif; display: inline-flex; flex-direction: column; align-items: center; justify-content: space-between; page-break-inside: avoid; margin: 10px;">
-                    <div style="text-align: center; width: 100%; border-bottom: 1px solid rgba(0,0,0,0.2); padding-bottom: 4px; margin-bottom: 4px;">
-                        <h4 style="margin: 0; font-size: 11px; font-weight: 800;">MTs PSM LOCERET</h4><p style="margin: 0; font-size: 8px;">Kartu Presensi Digital</p>
+            res.data.forEach((item, index) => {
+                const idBarcode = item.idOrang || item.nis || item.nip || "N/A";
+                kartuHTML += `
+                <div style="width: 250px; height: 380px; border: 2px solid #047857; border-radius: 12px; overflow: hidden; position: relative; background: #ffffff; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: sans-serif;">
+                    <div style="background-color: #047857; color: white; padding: 15px 10px;">
+                        <h3 style="margin: 0; font-size: 16px; font-weight: bold; text-transform: uppercase;">MTs PSM LOCERET</h3>
+                        <p style="margin: 4px 0 0; font-size: 11px; letter-spacing: 1px;">KARTU IDENTITAS ${jenisKartuAktif.toUpperCase()}</p>
                     </div>
-                    <table style="width: 100%; border: none;"><tr>
-                        <td style="width: 55%; text-align: center; vertical-align: top;">${fotoHTML}
-                            <h3 style="margin: 4px 0 2px 0; font-size: 10px; font-weight: bold;">${orang.nama}</h3>
-                            <p style="margin: 0; font-size: 8px; opacity: 0.9;">${isGuru ? 'NIP: ' : 'NIS: '} ${orang.nomorInduk}</p>
-                            <p style="margin: 2px 0 0 0; font-size: 8px; font-weight: bold;">${orang.subDetail}</p>
-                        </td>
-                        <td style="width: 45%; text-align: center; vertical-align: middle; background: white; padding: 4px; border-radius: 8px;" id="qr-${jenisKartuAktif}-${idx}"></td>
-                    </tr></table>
+                    
+                    <div style="padding: 20px 10px;">
+                        <h4 style="margin: 0 0 4px; font-size: 16px; color: #1f2937; font-weight: 800;">${item.nama}</h4>
+                        <p style="margin: 0 0 10px; font-size: 13px; color: #4b5563; font-weight: bold;">${item.peran || item.kelas || 'Guru'}</p>
+                        
+                        <!-- Tempat QR Code dirender -->
+                        <div id="qrcode-${index}" style="display: flex; justify-content: center; margin: 15px auto; padding: 5px; background: white; border: 1px solid #e5e7eb; border-radius: 8px; width: max-content;"></div>
+                        
+                        <p style="margin: 0; font-size: 12px; color: #374151; font-family: monospace; letter-spacing: 2px;">${idBarcode}</p>
+                    </div>
+
+                    <div style="position: absolute; bottom: 0; width: 100%; background-color: #047857; padding: 8px 0; color: white; font-size: 9px;">
+                        Gunakan kartu ini untuk Presensi Digital
+                    </div>
                 </div>`;
             });
-            htmlHTML += `</div>`;
-            areaCetak.innerHTML = htmlHTML;
+            kartuHTML += `</div>`;
 
-            // Generate QR Code
-            res.data.forEach((orang, idx) => { 
-                new QRCode(document.getElementById(`qr-${jenisKartuAktif}-${idx}`), { 
-                    text: orang.barcode.toString(), width: 70, height: 70, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M 
-                }); 
+            const areaCetak = document.getElementById('area-cetak');
+            areaCetak.innerHTML = kartuHTML;
+            areaCetak.classList.remove('hidden');
+
+            // Render ulang QR code di setiap kartu
+            res.data.forEach((item, index) => {
+                const idBarcode = item.idOrang || item.nis || item.nip || "000";
+                new QRCode(document.getElementById(`qrcode-${index}`), {
+                    text: idBarcode,
+                    width: 120,
+                    height: 120,
+                    colorDark: "#064e3b", 
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
             });
-            
-            document.getElementById('area-cetak').classList.remove('hidden');
 
+            // Beri waktu sebentar agar QR Code selesai dirender sebelum proses dokumen
             setTimeout(() => {
-                if (mode === 'print') { 
-                    window.print(); 
-                    document.getElementById('area-cetak').classList.add('hidden'); 
-                } 
-                else if (mode === 'pdf') { 
-                    html2pdf().set({ margin: 0.5, filename: `ID_Card_${jenisKartuAktif}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'cm', format: 'a4', orientation: 'portrait' } }).from(document.getElementById('konten-pdf-kartu')).save().then(() => { document.getElementById('area-cetak').classList.add('hidden'); }); 
-                }
-                else if (mode === 'word') {
-                    const area = document.getElementById('area-cetak');
-                    const canvases = area.querySelectorAll('canvas');
-                    
-                    // Ubah Canvas QR ke Image dengan Atribut Spesifik agar terbaca di MS Word
-                    canvases.forEach(canvas => {
-                        const img = document.createElement('img');
-                        img.src = canvas.toDataURL('image/png');
-                        img.setAttribute('width', '70');
-                        img.setAttribute('height', '70');
-                        canvas.parentNode.replaceChild(img, canvas);
+                if (mode === 'print') {
+                    window.print();
+                    areaCetak.classList.add('hidden');
+                } else if (mode === 'pdf') {
+                    html2pdf().set({
+                        margin: 0.5,
+                        filename: `ID_Card_${jenisKartuAktif.toUpperCase()}.pdf`,
+                        image: { type: 'jpeg', quality: 1 },
+                        html2canvas: { scale: 2, useCORS: true },
+                        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+                    }).from(areaCetak).save().then(() => {
+                        areaCetak.classList.add('hidden');
                     });
-                    
-                    // Bungkus ke format HTML yang kompatibel dengan Docx
-                    const content = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>${area.innerHTML}</body></html>`;
-                    
-                    // Convert murni ke file .docx
-                    const converted = htmlDocx.asBlob(content, { orientation: 'portrait' });
-                    saveAs(converted, `ID_Card_${jenisKartuAktif}.docx`);
-                    
-                    document.getElementById('area-cetak').classList.add('hidden');
+                } else if (mode === 'word') {
+                    const content = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>ID Card</title></head><body>${areaCetak.innerHTML}</body></html>`;
+                    const converted = htmlDocx.asBlob(content);
+                    saveAs(converted, `ID_Card_${jenisKartuAktif.toUpperCase()}.docx`);
+                    areaCetak.classList.add('hidden');
                 }
-            }, 800);
+            }, 800); 
         }
     </script>
 </body>
