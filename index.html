@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Madrasah Digital - Presensi MTs PSM</title>
+    <title>Madrasah Digital - Presensi MTs PSM Loceret</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -35,15 +35,62 @@
         <p id="load-text" class="text-white text-lg font-semibold tracking-widest animate-pulse">Memuat...</p>
     </div>
 
-    <!-- HALAMAN LOGIN -->
-    <div id="login-view" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-green-800 to-green-950">
-        <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md text-center border-t-8 border-green-600">
-            <img src="logo.jpg" alt="Logo" class="w-40 mx-auto mb-4 drop-shadow-md rounded-lg" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/1/12/Logo_Kementerian_Agama_Republik_Indonesia.png'">
-            <h1 class="text-2xl font-extrabold text-gray-800 mb-6">PORTAL ADMIN PRESENSI</h1>
-            <div class="space-y-4 text-left">
-                <div><label class="block text-sm font-bold text-gray-700 mb-1">Username / NIP</label><input type="text" id="username" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500"></div>
-                <div><label class="block text-sm font-bold text-gray-700 mb-1">Password</label><input type="password" id="password" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500" onkeypress="if(event.key === 'Enter') prosesLogin()"></div>
-                <button onclick="prosesLogin()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl mt-4 shadow-lg transition-all">MASUK SISTEM</button>
+    <!-- HALAMAN LOGIN BARU (DESAIN SPLIT SCREEN) -->
+    <div id="login-view" class="min-h-screen flex flex-col md:flex-row bg-gray-50">
+        <!-- Bagian Kiri (Branding & Gambar Gedung) -->
+        <div class="md:flex-[1.2] flex flex-col justify-between p-10 relative bg-cover bg-center" style="background-image: linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.95)), url('https://mtspsmloceret.sch.id/wp-content/uploads/gedung.jpg');">
+            <div class="text-center mt-10">
+                <img src="logo.jpg" alt="Logo MTs PSM" class="w-32 mx-auto mb-4 drop-shadow-md" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/1/12/Logo_Kementerian_Agama_Republik_Indonesia.png'">
+                <h1 class="text-4xl font-extrabold text-green-800 mb-2">SIM MTs PSM LOCERET</h1>
+                <h2 class="text-xl text-gray-700 font-semibold mb-4">Sistem Informasi Madrasah</h2>
+                <p class="text-green-700 font-medium italic border-t-2 border-green-700 inline-block pt-3">Unggul dalam Prestasi, Berakhlak Mulia, Berwawasan Global</p>
+            </div>
+            
+            <div class="bg-green-800 text-white rounded-2xl p-6 flex flex-col sm:flex-row justify-between text-sm shadow-lg mt-10 gap-4">
+                <div class="flex items-center gap-3"><span class="text-2xl">📍</span><span>Jl. Raya Loceret No. 99<br>Loceret, Nganjuk, Jawa Timur</span></div>
+                <div class="flex items-center gap-3"><span class="text-2xl">📞</span><span>(0358) 1234567</span></div>
+                <div class="flex items-center gap-3"><span class="text-2xl">✉️</span><span>mtspsmloceret@gmail.com</span></div>
+            </div>
+        </div>
+
+        <!-- Bagian Kanan (Formulir Login) -->
+        <div class="md:flex-1 flex items-center justify-center p-8 bg-white relative">
+            <div class="w-full max-w-md bg-white p-10 rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-gray-100">
+                <div class="text-center mb-10">
+                    <h2 class="text-4xl text-blue-700 mb-2 font-serif italic tracking-wide">Selamat Datang</h2>
+                    <p class="text-gray-500 text-sm">Silakan login untuk mengakses<br>Sistem Informasi Madrasah</p>
+                </div>
+                
+                <div class="space-y-5 text-left">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Username / NIP</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-3.5 text-gray-400">✉️</span>
+                            <input type="text" id="username" placeholder="Masukkan username Anda" class="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Password</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-3.5 text-gray-400">🔒</span>
+                            <input type="password" id="password" placeholder="Masukkan password Anda" class="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" onkeypress="if(event.key === 'Enter') prosesLogin()">
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center text-sm">
+                        <label class="flex items-center gap-2 text-gray-600 cursor-pointer"><input type="checkbox" class="rounded text-blue-600 focus:ring-blue-500"> Ingat saya</label>
+                        <a href="#" class="text-blue-600 font-semibold hover:underline">Lupa Password?</a>
+                    </div>
+                    
+                    <button onclick="prosesLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-blue-500/30 transition-all mt-4">🔒 MASUK</button>
+                </div>
+
+                <div class="mt-8 bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-center justify-center gap-3 text-blue-800 text-xs font-semibold text-center">
+                    <span>🛡️</span> Akses hanya untuk pengguna<br>yang terdaftar di sistem
+                </div>
+                
+                <p class="text-center text-gray-400 text-xs mt-8">© 2026 MTs PSM Loceret<br><a href="#" class="text-blue-500 hover:underline">All rights reserved</a></p>
             </div>
         </div>
     </div>
@@ -57,7 +104,7 @@
             </div>
             <div class="flex items-center gap-4">
                 <div class="text-right hidden sm:block"><p class="text-xs text-gray-400 font-bold uppercase">Akses Pengguna</p><p id="user-info" class="font-bold text-gray-800 text-sm"></p></div>
-                <button onclick="location.reload()" class="bg-red-50 hover:bg-red-100 text-red-600 p-2 rounded-lg transition-colors"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg></button>
+                <button onclick="location.reload()" class="bg-red-50 hover:bg-red-100 text-red-600 p-2 rounded-lg transition-colors" title="Keluar"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg></button>
             </div>
         </header>
 
@@ -94,10 +141,10 @@
                         </div>
                     </div>
 
-                    <!-- FITUR KETERLAMBATAN -->
+                    <!-- PENGATURAN BATAS TERLAMBAT -->
                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-6 max-w-2xl">
                         <h3 class="font-bold text-gray-800 mb-2">Pengaturan Batas Terlambat</h3>
-                        <p class="text-xs text-gray-500 mb-3">Tentukan batas jam masuk (format HH:MM). Siswa/Guru yang absen masuk lebih dari jam ini akan dilabeli <b class="text-red-600">Terlambat</b> di Laporan.</p>
+                        <p class="text-xs text-gray-500 mb-3">Tentukan batas jam masuk (format HH:MM). Absen datang lebih dari jam ini dilabeli <b class="text-red-600">Terlambat</b>.</p>
                         <div class="flex gap-2">
                             <input type="time" id="input-batas-terlambat" class="flex-1 p-3 border-2 border-gray-200 rounded-xl focus:border-red-500 outline-none font-mono" value="07:00">
                             <button onclick="simpanBatasTerlambat()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl shadow">Simpan Batas Waktu</button>
@@ -113,7 +160,8 @@
                             <div class="w-full md:w-1/2">
                                 <label class="block text-sm font-bold text-gray-700 mb-2">Pilih Sesi Absen:</label>
                                 <select id="sesi-absen" class="w-full p-4 border-2 border-green-500 rounded-xl font-extrabold text-lg text-green-800 bg-green-50 focus:outline-none">
-                                    <option value="Datang">▶ ABSEN DATANG (PAGI)</option><option value="Pulang">◀ ABSEN PULANG (SORE)</option>
+                                    <option value="Datang">▶ ABSEN DATANG (PAGI)</option>
+                                    <option value="Pulang">◀ ABSEN PULANG (SORE)</option>
                                 </select>
                             </div>
                             <div class="w-full md:w-1/2 bg-yellow-50 p-4 rounded-xl border border-yellow-200 text-sm text-yellow-800">
@@ -137,19 +185,19 @@
 
                 <!-- VIEW: REKAP -->
                 <div id="view-rekap" class="view-panel hidden">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-bold text-gray-800">Rekap Kehadiran (Per Kelas)</h2>
-                        <div class="flex gap-2">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">Rekap Kehadiran (Per Kelas & Bulanan)</h2>
+                        <div class="flex flex-wrap gap-2">
                             <button onclick="downloadLaporanExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow">Unduh Excel</button>
-                            <button onclick="downloadLaporanPDF()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow">Unduh PDF</button>
-                            <button onclick="downloadLaporanWord()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow">Unduh Word</button>
+                            <button onclick="cetakLembarAbsenBulanan()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow">Cetak Lembar Absen Bulanan</button>
+                            <button onclick="downloadLembarAbsenWord()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow">Unduh Word Bulanan</button>
                         </div>
                     </div>
 
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border mb-4 flex gap-4 items-end">
-                        <div class="w-1/3"><label class="block text-xs font-bold mb-1">Mulai</label><input type="date" id="tgl-mulai" class="w-full p-2 border rounded"></div>
-                        <div class="w-1/3"><label class="block text-xs font-bold mb-1">Selesai</label><input type="date" id="tgl-selesai" class="w-full p-2 border rounded"></div>
-                        <div class="w-1/3"><button onclick="tarikDataRekap()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded shadow">Tarik Database</button></div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border mb-4 flex flex-col sm:flex-row gap-4 items-end">
+                        <div class="w-full sm:w-1/3"><label class="block text-xs font-bold mb-1">Tanggal Mulai</label><input type="date" id="tgl-mulai" class="w-full p-2 border rounded"></div>
+                        <div class="w-full sm:w-1/3"><label class="block text-xs font-bold mb-1">Tanggal Selesai</label><input type="date" id="tgl-selesai" class="w-full p-2 border rounded"></div>
+                        <div class="w-full sm:w-1/3"><button onclick="tarikDataRekap()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded shadow">Tarik Database</button></div>
                     </div>
 
                     <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6 flex flex-col md:flex-row gap-4">
@@ -163,14 +211,25 @@
                         </div>
                         <div class="w-full md:w-2/3">
                             <label class="block text-xs font-bold text-indigo-800 mb-1">Filter Spesifik Kelas / Nama:</label>
-                            <input type="text" id="filter-teks" oninput="terapkanFilter()" placeholder="Ketik kelas (misal: 9A) atau nama untuk menyaring..." class="w-full p-2 border border-indigo-200 rounded font-bold bg-white">
+                            <input type="text" id="filter-teks" oninput="terapkanFilter()" placeholder="Ketik kelas (misal: 9-A) atau nama untuk menyaring..." class="w-full p-2 border border-indigo-200 rounded font-bold bg-white">
                         </div>
                     </div>
 
                     <div class="bg-white rounded-2xl shadow-sm border overflow-x-auto p-4">
                         <table class="w-full text-left text-sm" id="tabel-rekap-layar">
-                            <thead class="bg-gray-100 uppercase text-xs font-bold border-b"><tr><th class="p-3">Waktu</th><th class="p-3">Barcode</th><th class="p-3">Nama</th><th class="p-3 text-indigo-700">Kelas/Peran</th><th class="p-3">Sesi</th><th class="p-3">Kehadiran</th></tr></thead>
-                            <tbody id="body-rekap" class="divide-y"><tr><td colspan="6" class="p-4 text-center text-gray-400">Pilih tanggal dan klik Tarik Database</td></tr></tbody>
+                            <thead class="bg-gray-100 uppercase text-xs font-bold border-b">
+                                <tr>
+                                    <th class="p-3">Tanggal</th>
+                                    <th class="p-3">Barcode</th>
+                                    <th class="p-3">Nama</th>
+                                    <th class="p-3 text-indigo-700">Kelas/Peran</th>
+                                    <th class="p-3">Jam Masuk & Pulang</th>
+                                    <th class="p-3">Kehadiran</th>
+                                </tr>
+                            </thead>
+                            <tbody id="body-rekap" class="divide-y">
+                                <tr><td colspan="6" class="p-4 text-center text-gray-400">Pilih tanggal dan klik Tarik Database</td></tr>
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -187,7 +246,9 @@
             </main>
         </div>
     </div>
-    <div id="area-cetak" class="hidden absolute top-0 left-0 w-full bg-white z-50 p-8"></div>
+
+    <!-- AREA CETAK KHUSUS PRINT / PDF -->
+    <div id="area-cetak" class="hidden bg-white z-50 p-4"></div>
 
     <script>
         const API_URL = 'https://script.google.com/macros/s/AKfycbycJr-mWA_YX7V2dzKnQMYZI4gL08aTraoHieIIQOdEIYl-0Ja7CmO_o6jxO2_wXNw/exec'; 
@@ -196,7 +257,6 @@
         let dataRekapTersimpan = []; 
         let dataRekapDitampilkan = []; 
         
-        // PENGATURAN DEFAULT KETERLAMBATAN
         let batasTerlambat = "07:00"; 
         if(localStorage.getItem('batasTerlambatMadrasah')) {
             batasTerlambat = localStorage.getItem('batasTerlambatMadrasah');
@@ -207,49 +267,53 @@
         const hideLoad = () => document.getElementById('loading').classList.add('hidden');
 
         async function panggilAPI(dataPayload) {
-          try {
-            const params = new URLSearchParams(dataPayload).toString();
-            const r = await fetch(`${API_URL}?${params}`, { method: 'GET', mode: 'cors' }); 
-            return await r.json(); 
-          } catch (e) { return { sukses: false, pesan: "Koneksi database gagal." }; }
+            try {
+                const params = new URLSearchParams(dataPayload).toString();
+                const r = await fetch(`${API_URL}?${params}`, { method: 'GET', mode: 'cors' }); 
+                return await r.json(); 
+            } catch (e) { return { sukses: false, pesan: "Koneksi database gagal." }; }
         }
 
         function pindahMenu(menu) {
-          if(isScanning) stopKamera();
-          document.querySelectorAll('.view-panel').forEach(el => el.classList.add('hidden'));
-          
-          if(menu === 'kartu-siswa' || menu === 'kartu-guru') {
-              jenisKartuAktif = menu === 'kartu-siswa' ? 'siswa' : 'guru';
-              document.getElementById('view-kartu').classList.remove('hidden');
-              document.getElementById('judul-cetak-kartu').innerText = menu === 'kartu-siswa' ? 'Cetak ID Card Siswa' : 'Cetak ID Card Guru';
-          } else {
-              document.getElementById('view-' + menu).classList.remove('hidden');
-              if(menu === 'dashboard') muatDashboard();
-          }
+            if(isScanning) stopKamera();
+            document.querySelectorAll('.view-panel').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('nav-active'));
+            
+            const navBtn = document.getElementById('nav-' + menu);
+            if(navBtn) navBtn.classList.add('nav-active');
+
+            if(menu === 'kartu-siswa' || menu === 'kartu-guru') {
+                jenisKartuAktif = menu === 'kartu-siswa' ? 'siswa' : 'guru';
+                document.getElementById('view-kartu').classList.remove('hidden');
+                document.getElementById('judul-cetak-kartu').innerText = menu === 'kartu-siswa' ? 'Cetak ID Card Siswa' : 'Cetak ID Card Guru';
+            } else {
+                document.getElementById('view-' + menu).classList.remove('hidden');
+                if(menu === 'dashboard') muatDashboard();
+            }
         }
 
         async function prosesLogin() {
-          const u = document.getElementById('username').value, p = document.getElementById('password').value;
-          if(!u || !p) return;
-          showLoad("Autentikasi...");
-          const res = await panggilAPI({ action: "login", user: u, pass: p });
-          hideLoad();
-          if(res.sukses) {
-            currentUser = res.data; 
-            document.getElementById('login-view').classList.add('hidden'); 
-            document.getElementById('app-layout').classList.remove('hidden');
-            document.getElementById('user-info').innerText = `${currentUser.nama}`; 
-            pindahMenu('dashboard');
-          } else Swal.fire('Ditolak', res.pesan, 'error');
+            const u = document.getElementById('username').value, p = document.getElementById('password').value;
+            if(!u || !p) return Swal.fire('Info', 'Username dan Password harus diisi.', 'warning');
+            showLoad("Autentikasi...");
+            const res = await panggilAPI({ action: "login", user: u, pass: p });
+            hideLoad();
+            if(res.sukses) {
+                currentUser = res.data; 
+                document.getElementById('login-view').classList.add('hidden'); 
+                document.getElementById('app-layout').classList.remove('hidden');
+                document.getElementById('user-info').innerText = `${currentUser.nama}`; 
+                pindahMenu('dashboard');
+            } else Swal.fire('Ditolak', res.pesan, 'error');
         }
 
         async function muatDashboard() {
-          const res = await panggilAPI({ action: "dashboard" });
-          if(res.sukses) {
-            document.getElementById('dash-guru').innerText = res.guru;
-            document.getElementById('dash-siswa').innerText = res.siswa;
-            document.getElementById('dash-hadir').innerText = res.hadir;
-          }
+            const res = await panggilAPI({ action: "dashboard" });
+            if(res.sukses) {
+                document.getElementById('dash-guru').innerText = res.guru;
+                document.getElementById('dash-siswa').innerText = res.siswa;
+                document.getElementById('dash-hadir').innerText = res.hadir;
+            }
         }
 
         // --- SISTEM AUTO-SCAN GUN ---
@@ -289,12 +353,10 @@
             if(r.sukses) {
                 document.getElementById('audio-sukses').play().catch(e=>console.log(e));
                 
-                // Suara Sapaan TTS
                 const now = new Date();
                 const jam = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-                
                 const isGuru = r.data.peran && r.data.peran.toLowerCase().includes('guru');
-                const sapaan = isGuru ? "Bapak atau Ibu " : "Kakak "; 
+                const sapaan = isGuru ? "Bapak atau Ibu " : "Ananda "; 
                 const teksSuara = `Terima kasih ${sapaan} ${r.data.nama}, sudah absen pada hari ini di jam ${jam}`;
                 
                 const speech = new SpeechSynthesisUtterance(teksSuara);
@@ -309,7 +371,7 @@
             setTimeout(() => { lastScan = ""; }, 3000); 
         }
 
-        // --- SISTEM FILTER & REKAP (SUDAH DIPERBAIKI) ---
+        // --- SISTEM FILTER & REKAP ---
         async function tarikDataRekap() {
             const tm = document.getElementById('tgl-mulai').value, ts = document.getElementById('tgl-selesai').value;
             if(!tm || !ts) return Swal.fire('Info', 'Pilih tanggal mulai & selesai.', 'warning');
@@ -334,11 +396,9 @@
                 let matchKat = true;
                 const peranStr = (d.peran || "").toLowerCase();
                 
-                // PERBAIKAN LOGIKA KELAS SISWA
                 if (kat === 'guru') {
                     matchKat = peranStr.includes("guru");
                 } else if (kat === 'siswa') {
-                    // Jika BUKAN guru, maka dianggap sebagai siswa (jadi meskipun tertulis '9A' akan tetap masuk)
                     matchKat = !peranStr.includes("guru"); 
                 }
                 
@@ -352,125 +412,222 @@
             renderTabelRekap();
         }
 
+        // 1. TAMPILAN LAYAR: Gabungkan Datang & Pulang menjadi 1 baris per orang per hari
         function renderTabelRekap() {
             const tbody = document.getElementById('body-rekap');
             tbody.innerHTML = '';
             
             if (dataRekapDitampilkan.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-red-500 font-bold">Tidak ada data yang cocok dengan pencarian Anda.</td></tr>`; return;
+                tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-red-500 font-bold">Tidak ada data yang cocok dengan pencarian Anda.</td></tr>`; 
+                return;
             }
-            
-            dataRekapDitampilkan.forEach(d => { 
-                // DETEKSI KETERLAMBATAN
-                let infoKeterlambatan = `<span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-bold">${d.status}</span>`;
-                
-                if(d.sesi.toLowerCase().includes("datang")) {
-                    const jamAbsen = d.waktu.substring(0, 5); // Ambil format HH:MM
-                    if(jamAbsen > batasTerlambat) {
-                        infoKeterlambatan = `<span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">Terlambat</span>`;
-                    } else {
-                        infoKeterlambatan = `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Tepat Waktu</span>`;
-                    }
+
+            let gabunganHarian = {};
+            dataRekapDitampilkan.forEach(d => {
+                let kunci = `${d.tanggal}_${d.idOrang}`;
+                if (!gabunganHarian[kunci]) {
+                    gabunganHarian[kunci] = {
+                        tanggal: d.tanggal,
+                        idOrang: d.idOrang,
+                        nama: d.nama,
+                        peran: d.peran,
+                        jamDatang: "-",
+                        jamPulang: "-",
+                        terlambat: false
+                    };
                 }
+                if (d.sesi.toLowerCase().includes("datang")) {
+                    gabunganHarian[kunci].jamDatang = d.waktu;
+                    if (d.waktu.substring(0, 5) > batasTerlambat) {
+                        gabunganHarian[kunci].terlambat = true;
+                    }
+                } else if (d.sesi.toLowerCase().includes("pulang")) {
+                    gabunganHarian[kunci].jamPulang = d.waktu;
+                }
+            });
+
+            Object.values(gabunganHarian).forEach(item => {
+                let badgeStatus = item.terlambat 
+                    ? `<span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">Terlambat</span>`
+                    : `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Hadir</span>`;
 
                 tbody.innerHTML += `<tr>
-                    <td class="p-3 border-b">${d.tanggal}<br><span class="text-xs text-gray-500 font-mono">${d.waktu}</span></td>
-                    <td class="p-3 font-mono border-b text-xs">${d.idOrang}</td>
-                    <td class="p-3 font-bold border-b text-sm">${d.nama}</td>
-                    <td class="p-3 border-b"><span class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded text-xs font-bold">${d.peran}</span></td>
-                    <td class="p-3 border-b text-sm">${d.sesi}</td>
-                    <td class="p-3 border-b">${infoKeterlambatan}</td>
-                </tr>`; 
+                    <td class="p-3 border-b font-bold">${item.tanggal}</td>
+                    <td class="p-3 font-mono border-b text-xs">${item.idOrang}</td>
+                    <td class="p-3 font-bold border-b text-sm">${item.nama}</td>
+                    <td class="p-3 border-b"><span class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded text-xs font-bold">${item.peran}</span></td>
+                    <td class="p-3 border-b text-xs font-mono">
+                        <span class="text-green-700">Masuk: <b>${item.jamDatang}</b></span><br>
+                        <span class="text-blue-700">Pulang: <b>${item.jamPulang}</b></span>
+                    </td>
+                    <td class="p-3 border-b">${badgeStatus}</td>
+                </tr>`;
             });
         }
 
+        // 2. DOWNLOAD EXCEL HARIAN TERGABUNG
         function downloadLaporanExcel() {
             if(dataRekapDitampilkan.length === 0) return Swal.fire('Info', 'Data kosong.', 'warning');
-            let htmlTable = `<table border="1"><thead><tr><th>Tanggal</th><th>Waktu</th><th>Barcode</th><th>Nama</th><th>Kelas/Jabatan</th><th>Sesi</th><th>Kehadiran (Keterlambatan)</th></tr></thead><tbody>`;
+            let htmlTable = `<table border="1"><thead><tr><th>Tanggal</th><th>Barcode</th><th>Nama</th><th>Kelas/Jabatan</th><th>Sesi</th><th>Waktu</th><th>Status</th></tr></thead><tbody>`;
             dataRekapDitampilkan.forEach(d => { 
                 let ket = d.status;
                 if(d.sesi.toLowerCase().includes("datang")) {
                     const jam = d.waktu.substring(0,5);
                     ket = jam > batasTerlambat ? "Terlambat" : "Tepat Waktu";
                 }
-                htmlTable += `<tr><td>${d.tanggal}</td><td>${d.waktu}</td><td>${d.idOrang}</td><td>${d.nama}</td><td>${d.peran}</td><td>${d.sesi}</td><td>${ket}</td></tr>`; 
+                htmlTable += `<tr><td>${d.tanggal}</td><td>${d.idOrang}</td><td>${d.nama}</td><td>${d.peran}</td><td>${d.sesi}</td><td>${d.waktu}</td><td>${ket}</td></tr>`; 
             });
             htmlTable += `</tbody></table>`;
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([htmlTable], { type: 'application/vnd.ms-excel' })); a.download = `Rekap_Absensi_MTs.xls`; a.click();
         }
 
-        function downloadLaporanPDF() {
-            if(dataRekapDitampilkan.length === 0) return Swal.fire('Info', 'Data kosong.', 'warning');
-            let barisTabel = '';
-            dataRekapDitampilkan.forEach((d, i) => { 
-                let ket = d.status;
-                let warna = "black";
-                if(d.sesi.toLowerCase().includes("datang")) {
-                    const jam = d.waktu.substring(0,5);
-                    if(jam > batasTerlambat) { ket = "Terlambat"; warna = "red"; } else { ket = "Tepat Waktu"; warna = "green"; }
+        // 3. GENERATOR HTML LEMBAR ABSEN BULANAN (MATRIKS 1-31 + KOLOM H, S, I, A + TTD)
+        function buatHTMLMatriksBulanan() {
+            const tglInput = document.getElementById('tgl-mulai').value;
+            const tglObj = tglInput ? new Date(tglInput) : new Date();
+            const bulanIdx = tglObj.getMonth();
+            const tahun = tglObj.getFullYear();
+            const namaBulan = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"];
+            const jumlahHari = new Date(tahun, bulanIdx + 1, 0).getDate();
+
+            const filterKat = document.getElementById('filter-kategori').options[document.getElementById('filter-kategori').selectedIndex].text;
+            const filterKelas = document.getElementById('filter-teks').value.toUpperCase() || "SEMUA KELAS";
+
+            let rekapSiswa = {};
+            dataRekapDitampilkan.forEach(d => {
+                if (!rekapSiswa[d.nama]) {
+                    rekapSiswa[d.nama] = { id: d.idOrang, kelas: d.peran, tglHadir: {} };
                 }
-                barisTabel += `<tr>
-                    <td style="border: 1px solid black; padding: 6px; text-align: center;">${i+1}</td>
-                    <td style="border: 1px solid black; padding: 6px;">${d.tanggal} ${d.waktu}</td>
-                    <td style="border: 1px solid black; padding: 6px;">${d.nama}</td>
-                    <td style="border: 1px solid black; padding: 6px; text-align:center;">${d.peran}</td>
-                    <td style="border: 1px solid black; padding: 6px; text-align:center;">${d.sesi}</td>
-                    <td style="border: 1px solid black; padding: 6px; text-align:center; font-weight:bold; color:${warna};">${ket}</td>
-                </tr>`; 
+                let parts = d.tanggal.split("-");
+                let hariKe = parseInt(parts[0], 10);
+                let bulanData = parseInt(parts[1], 10) - 1;
+                
+                if (bulanData === bulanIdx) {
+                    rekapSiswa[d.nama].tglHadir[hariKe] = true; 
+                }
             });
+
+            let thTanggal = "";
+            for (let i = 1; i <= jumlahHari; i++) {
+                thTanggal += `<th style="border: 1px solid black; padding: 3px; width: 22px; font-size: 10px;">${i}</th>`;
+            }
+
+            let tbodyHtml = "";
+            let daftarNama = Object.keys(rekapSiswa).sort();
             
-            const areaCetak = document.getElementById('area-cetak');
-            areaCetak.innerHTML = `<div style="font-family: 'Times New Roman', serif; padding: 1cm;"><div style="text-align: center; border-bottom: 3px double black; padding-bottom: 8px; margin-bottom: 15px;"><h1 style="margin: 0; font-size: 20px; font-weight: bold;">LAPORAN PRESENSI MTs PSM LOCERET</h1><p style="margin:0; font-size:12px;">Data Tersaring & Informasi Keterlambatan</p></div><table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top:20px;"><thead><tr style="background-color: #e0e7ff;"><th style="border: 1px solid black; padding: 6px;">No</th><th style="border: 1px solid black; padding: 6px;">Waktu</th><th style="border: 1px solid black; padding: 6px;">Nama Lengkap</th><th style="border: 1px solid black; padding: 6px;">Kelas/Jabatan</th><th style="border: 1px solid black; padding: 6px;">Sesi</th><th style="border: 1px solid black; padding: 6px;">Kehadiran</th></tr></thead><tbody>${barisTabel}</tbody></table></div>`;
-            
-            document.getElementById('area-cetak').classList.remove('hidden');
-            html2pdf().set({ margin: 1, filename: `Laporan_Absen.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'cm', format: 'a4', orientation: 'portrait' } }).from(document.getElementById('area-cetak')).save().then(() => { document.getElementById('area-cetak').classList.add('hidden'); });
+            daftarNama.forEach((nama, idx) => {
+                let totalHadir = 0;
+                let tdTanggal = "";
+                
+                for (let i = 1; i <= jumlahHari; i++) {
+                    if (rekapSiswa[nama].tglHadir[i]) {
+                        tdTanggal += `<td style="border: 1px solid black; text-align: center; font-weight: bold; font-size: 11px;">✔</td>`;
+                        totalHadir++;
+                    } else {
+                        tdTanggal += `<td style="border: 1px solid black; text-align: center;"></td>`;
+                    }
+                }
+
+                tbodyHtml += `
+                <tr>
+                    <td style="border: 1px solid black; padding: 4px; text-align: center;">${idx + 1}</td>
+                    <td style="border: 1px solid black; padding: 4px 6px; text-align: left; white-space: nowrap;">${nama}</td>
+                    ${tdTanggal}
+                    <td style="border: 1px solid black; text-align: center; font-weight: bold;">${totalHadir}</td>
+                    <td style="border: 1px solid black; text-align: center;"></td>
+                    <td style="border: 1px solid black; text-align: center;"></td>
+                    <td style="border: 1px solid black; text-align: center;"></td>
+                </tr>`;
+            });
+
+            const hariIni = new Date();
+            const tglCetak = `${hariIni.getDate()} ${namaBulan[hariIni.getMonth()].charAt(0) + namaBulan[hariIni.getMonth()].slice(1).toLowerCase()} ${hariIni.getFullYear()}`;
+
+            return `
+            <div style="font-family: 'Times New Roman', serif; color: black; padding: 10px;">
+                <div style="text-align: center; margin-bottom: 12px;">
+                    <h2 style="margin: 0; font-size: 18px; font-weight: bold;">DAFTAR HADIR BULANAN</h2>
+                    <h3 style="margin: 2px 0; font-size: 15px; font-weight: bold;">MTs PSM LOCERET</h3>
+                    <p style="margin: 4px 0 0 0; font-size: 12px;">
+                        <b>Kategori / Kelas:</b> ${filterKelas} (${filterKat}) &nbsp;&nbsp;|&nbsp;&nbsp; 
+                        <b>Bulan:</b> ${namaBulan[bulanIdx]} ${tahun}
+                    </p>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                    <thead>
+                        <tr style="background-color: #f0f0f0;">
+                            <th rowspan="2" style="border: 1px solid black; padding: 4px; width: 25px;">No</th>
+                            <th rowspan="2" style="border: 1px solid black; padding: 4px; text-align: left;">Nama Lengkap</th>
+                            <th colspan="${jumlahHari}" style="border: 1px solid black; padding: 3px;">Tanggal</th>
+                            <th colspan="4" style="border: 1px solid black; padding: 3px;">Jumlah</th>
+                        </tr>
+                        <tr style="background-color: #f0f0f0;">
+                            ${thTanggal}
+                            <th style="border: 1px solid black; padding: 3px; width: 25px;" title="Hadir">H</th>
+                            <th style="border: 1px solid black; padding: 3px; width: 25px;" title="Sakit (Isi Manual)">S</th>
+                            <th style="border: 1px solid black; padding: 3px; width: 25px;" title="Izin (Isi Manual)">I</th>
+                            <th style="border: 1px solid black; padding: 3px; width: 25px;" title="Alpha (Isi Manual)">A</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tbodyHtml}
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 8px; font-size: 10px; font-style: italic;">
+                    * Keterangan: <b>H</b> = Hadir (Otomatis), <b>S</b> = Sakit, <b>I</b> = Izin, <b>A</b> = Alpha (Diisi manual oleh Wali Kelas).
+                </div>
+
+                <table style="width: 100%; margin-top: 25px; font-size: 12px; border: none;">
+                    <tr>
+                        <td style="width: 50%; text-align: center; vertical-align: top;">
+                            Mengetahui,<br>
+                            Kepala Madrasah<br><br><br><br>
+                            <b><u>( ................................................... )</u></b>
+                        </td>
+                        <td style="width: 50%; text-align: center; vertical-align: top;">
+                            Loceret, ${tglCetak}<br>
+                            Wali Kelas ${filterKelas !== "SEMUA KELAS" ? filterKelas : ""}<br><br><br><br>
+                            <b><u>( ................................................... )</u></b>
+                        </td>
+                    </tr>
+                </table>
+            </div>`;
         }
 
-        function downloadLaporanWord() {
-            if(dataRekapDitampilkan.length === 0) return Swal.fire('Info', 'Data kosong.', 'warning');
-            let barisTabel = '';
-            dataRekapDitampilkan.forEach((d, i) => { 
-                let ket = d.status;
-                let warna = "black";
-                if(d.sesi.toLowerCase().includes("datang")) {
-                    const jam = d.waktu.substring(0,5);
-                    if(jam > batasTerlambat) { ket = "Terlambat"; warna = "red"; } else { ket = "Tepat Waktu"; warna = "green"; }
-                }
-                barisTabel += `<tr>
-                    <td style="border: 1px solid black; padding: 6px; text-align: center;">${i+1}</td>
-                    <td style="border: 1px solid black; padding: 6px;">${d.tanggal} ${d.waktu}</td>
-                    <td style="border: 1px solid black; padding: 6px;">${d.nama}</td>
-                    <td style="border: 1px solid black; padding: 6px; text-align:center;">${d.peran}</td>
-                    <td style="border: 1px solid black; padding: 6px; text-align:center;">${d.sesi}</td>
-                    <td style="border: 1px solid black; padding: 6px; text-align:center; font-weight:bold; color:${warna};">${ket}</td>
-                </tr>`; 
-            });
+        // 4. CETAK / SIMPAN PDF (LANDSCAPE)
+        function cetakLembarAbsenBulanan() {
+            if (dataRekapDitampilkan.length === 0) return Swal.fire('Info', 'Tarik database terlebih dahulu.', 'warning');
             
-            const content = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Laporan Absensi</title></head><body>
-                <div style="font-family: 'Times New Roman', serif;">
-                    <h2 style="text-align: center;">LAPORAN PRESENSI MTs PSM LOCERET</h2>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top:20px;">
-                        <thead>
-                            <tr style="background-color: #e0e7ff;">
-                                <th style="border: 1px solid black; padding: 6px;">No</th>
-                                <th style="border: 1px solid black; padding: 6px;">Waktu</th>
-                                <th style="border: 1px solid black; padding: 6px;">Nama Lengkap</th>
-                                <th style="border: 1px solid black; padding: 6px;">Kelas/Jabatan</th>
-                                <th style="border: 1px solid black; padding: 6px;">Sesi</th>
-                                <th style="border: 1px solid black; padding: 6px;">Kehadiran</th>
-                            </tr>
-                        </thead>
-                        <tbody>${barisTabel}</tbody>
-                    </table>
-                </div>
-            </body></html>`;
+            const areaCetak = document.getElementById('area-cetak');
+            areaCetak.innerHTML = buatHTMLMatriksBulanan();
+            areaCetak.classList.remove('hidden');
+
+            const styleLandscape = document.createElement('style');
+            styleLandscape.id = 'print-landscape-style';
+            styleLandscape.innerHTML = `@media print { @page { size: landscape; margin: 10mm; } }`;
+            document.head.appendChild(styleLandscape);
+
+            setTimeout(() => {
+                window.print();
+                areaCetak.classList.add('hidden');
+                styleLandscape.remove();
+            }, 300);
+        }
+
+        // 5. UNDUH WORD (.DOCX) FORMAT MATRIKS BULANAN
+        function downloadLembarAbsenWord() {
+            if (dataRekapDitampilkan.length === 0) return Swal.fire('Info', 'Tarik database terlebih dahulu.', 'warning');
             
-            const converted = htmlDocx.asBlob(content);
-            saveAs(converted, 'Rekap_Absensi_MTs.docx');
+            const kontenMatriks = buatHTMLMatriksBulanan();
+            const content = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>@page { size: landscape; margin: 1cm; }</style></head><body>${kontenMatriks}</body></html>`;
+            const converted = htmlDocx.asBlob(content, { orientation: 'landscape' });
+            saveAs(converted, `Lembar_Absen_Bulanan.docx`);
         }
 
         // ==========================================
-        // PENGATURAN BEL DINAMIS
+        // PENGATURAN BEL & KETERLAMBATAN
         // ==========================================
         let jadwalBelArray = ["07:00:00", "09:30:00", "15:00:00"]; 
         if(localStorage.getItem('jadwalBelMadrasah')) {
@@ -501,7 +658,7 @@
 
             if (jadwalBelArray.includes(waktuSekarang)) {
                 const bel = document.getElementById('audio-bel');
-                if(bel) bel.play().catch(e => console.log("Bel diblokir browser, pastikan sudah klik web."));
+                if(bel) bel.play().catch(e => console.log("Bel diblokir browser."));
             }
         }, 1000);
 
@@ -510,7 +667,7 @@
         // ==========================================
         async function prosesCetakKartu(mode) {
             showLoad("Mengambil data kartu...");
-            const res = await panggilAPI({ action: "dataKartu", jenis: jenisKartuAktif });
+            const res = await panggilAPI({ action: "get_data_cetak", jenis: jenisKartuAktif });
             hideLoad();
 
             if (!res.sukses || !res.data || res.data.length === 0) {
@@ -520,7 +677,7 @@
             let kartuHTML = `<div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; padding: 20px; background: white;">`;
             
             res.data.forEach((item, index) => {
-                const idBarcode = item.idOrang || item.nis || item.nip || "N/A";
+                const idBarcode = item.barcode || item.idOrang || "N/A";
                 kartuHTML += `
                 <div style="width: 250px; height: 380px; border: 2px solid #047857; border-radius: 12px; overflow: hidden; position: relative; background: #ffffff; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: sans-serif;">
                     <div style="background-color: #047857; color: white; padding: 15px 10px;">
@@ -530,7 +687,7 @@
                     
                     <div style="padding: 20px 10px;">
                         <h4 style="margin: 0 0 4px; font-size: 16px; color: #1f2937; font-weight: 800;">${item.nama}</h4>
-                        <p style="margin: 0 0 10px; font-size: 13px; color: #4b5563; font-weight: bold;">${item.peran || item.kelas || 'Guru'}</p>
+                        <p style="margin: 0 0 10px; font-size: 13px; color: #4b5563; font-weight: bold;">${item.subDetail || 'Guru'}</p>
                         
                         <div id="qrcode-${index}" style="display: flex; justify-content: center; margin: 15px auto; padding: 5px; background: white; border: 1px solid #e5e7eb; border-radius: 8px; width: max-content;"></div>
                         
@@ -549,7 +706,7 @@
             areaCetak.classList.remove('hidden');
 
             res.data.forEach((item, index) => {
-                const idBarcode = item.idOrang || item.nis || item.nip || "000";
+                const idBarcode = item.barcode || item.idOrang || "000";
                 new QRCode(document.getElementById(`qrcode-${index}`), {
                     text: idBarcode,
                     width: 120,
