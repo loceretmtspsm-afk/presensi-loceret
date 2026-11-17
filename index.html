@@ -10,7 +10,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <!-- Tambahan Library untuk Export Word (.docx) -->
     <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
@@ -94,6 +93,16 @@
                             <button onclick="simpanJadwalBel()" class="bg-gray-800 hover:bg-black text-white font-bold py-3 px-6 rounded-xl shadow">Simpan</button>
                         </div>
                     </div>
+
+                    <!-- FITUR KETERLAMBATAN -->
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-6 max-w-2xl">
+                        <h3 class="font-bold text-gray-800 mb-2">Pengaturan Batas Terlambat</h3>
+                        <p class="text-xs text-gray-500 mb-3">Tentukan batas jam masuk (format HH:MM). Siswa/Guru yang absen masuk lebih dari jam ini akan dilabeli <b class="text-red-600">Terlambat</b> di Laporan.</p>
+                        <div class="flex gap-2">
+                            <input type="time" id="input-batas-terlambat" class="flex-1 p-3 border-2 border-gray-200 rounded-xl focus:border-red-500 outline-none font-mono" value="07:00">
+                            <button onclick="simpanBatasTerlambat()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl shadow">Simpan Batas Waktu</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- VIEW: SCAN (KAMERA & GUN) -->
@@ -154,13 +163,13 @@
                         </div>
                         <div class="w-full md:w-2/3">
                             <label class="block text-xs font-bold text-indigo-800 mb-1">Filter Spesifik Kelas / Nama:</label>
-                            <input type="text" id="filter-teks" oninput="terapkanFilter()" placeholder="Ketik kelas atau nama untuk menyaring otomatis..." class="w-full p-2 border border-indigo-200 rounded font-bold bg-white">
+                            <input type="text" id="filter-teks" oninput="terapkanFilter()" placeholder="Ketik kelas (misal: 9A) atau nama untuk menyaring..." class="w-full p-2 border border-indigo-200 rounded font-bold bg-white">
                         </div>
                     </div>
 
                     <div class="bg-white rounded-2xl shadow-sm border overflow-x-auto p-4">
                         <table class="w-full text-left text-sm" id="tabel-rekap-layar">
-                            <thead class="bg-gray-100 uppercase text-xs font-bold border-b"><tr><th class="p-3">Waktu</th><th class="p-3">Barcode</th><th class="p-3">Nama</th><th class="p-3 text-indigo-700">Kelas/Peran</th><th class="p-3">Sesi</th><th class="p-3">Status</th></tr></thead>
+                            <thead class="bg-gray-100 uppercase text-xs font-bold border-b"><tr><th class="p-3">Waktu</th><th class="p-3">Barcode</th><th class="p-3">Nama</th><th class="p-3 text-indigo-700">Kelas/Peran</th><th class="p-3">Sesi</th><th class="p-3">Kehadiran</th></tr></thead>
                             <tbody id="body-rekap" class="divide-y"><tr><td colspan="6" class="p-4 text-center text-gray-400">Pilih tanggal dan klik Tarik Database</td></tr></tbody>
                         </table>
                     </div>
@@ -186,6 +195,13 @@
         let currentUser = null, html5Qrcode = null, isScanning = false, lastScan = "", jenisKartuAktif = "siswa"; 
         let dataRekapTersimpan = []; 
         let dataRekapDitampilkan = []; 
+        
+        // PENGATURAN DEFAULT KETERLAMBATAN
+        let batasTerlambat = "07:00"; 
+        if(localStorage.getItem('batasTerlambatMadrasah')) {
+            batasTerlambat = localStorage.getItem('batasTerlambatMadrasah');
+            setTimeout(() => { if(document.getElementById('input-batas-terlambat')) document.getElementById('input-batas-terlambat').value = batasTerlambat; }, 1000);
+        }
 
         const showLoad = (txt) => { document.getElementById('load-text').innerText = txt; document.getElementById('loading').classList.remove('hidden'); }
         const hideLoad = () => document.getElementById('loading').classList.add('hidden');
@@ -273,7 +289,7 @@
             if(r.sukses) {
                 document.getElementById('audio-sukses').play().catch(e=>console.log(e));
                 
-                // --- FITUR BARU: SUARA ROBOT (TEXT TO SPEECH) ---
+                // Suara Sapaan TTS
                 const now = new Date();
                 const jam = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
                 
@@ -285,7 +301,6 @@
                 speech.lang = 'id-ID'; 
                 speech.rate = 0.9;     
                 window.speechSynthesis.speak(speech);
-                // ------------------------------------------------
 
                 Swal.fire({ title: 'BERHASIL ABSEN!', html: `<b style="font-size:1.8rem; color:#047857;">${r.data.nama}</b><br><br>Sesi: <b>${sesi}</b>`, icon: 'success', timer: 3000, showConfirmButton: false });
             } else {
@@ -294,7 +309,7 @@
             setTimeout(() => { lastScan = ""; }, 3000); 
         }
 
-        // --- SISTEM FILTER & REKAP ---
+        // --- SISTEM FILTER & REKAP (SUDAH DIPERBAIKI) ---
         async function tarikDataRekap() {
             const tm = document.getElementById('tgl-mulai').value, ts = document.getElementById('tgl-selesai').value;
             if(!tm || !ts) return Swal.fire('Info', 'Pilih tanggal mulai & selesai.', 'warning');
@@ -318,8 +333,14 @@
             dataRekapDitampilkan = dataRekapTersimpan.filter(d => {
                 let matchKat = true;
                 const peranStr = (d.peran || "").toLowerCase();
-                if (kat === 'guru') matchKat = peranStr.includes("guru");
-                if (kat === 'siswa') matchKat = peranStr.includes("siswa");
+                
+                // PERBAIKAN LOGIKA KELAS SISWA
+                if (kat === 'guru') {
+                    matchKat = peranStr.includes("guru");
+                } else if (kat === 'siswa') {
+                    // Jika BUKAN guru, maka dianggap sebagai siswa (jadi meskipun tertulis '9A' akan tetap masuk)
+                    matchKat = !peranStr.includes("guru"); 
+                }
                 
                 let matchTeks = true;
                 if (teks !== "") {
@@ -340,25 +361,66 @@
             }
             
             dataRekapDitampilkan.forEach(d => { 
-                tbody.innerHTML += `<tr><td class="p-3 border-b">${d.tanggal}<br><span class="text-xs text-gray-400">${d.waktu}</span></td><td class="p-3 font-mono border-b">${d.idOrang}</td><td class="p-3 font-bold border-b">${d.nama}</td><td class="p-3 border-b"><span class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded text-xs font-bold">${d.peran}</span></td><td class="p-3 border-b">${d.sesi}</td><td class="p-3 text-green-600 font-bold border-b">${d.status}</td></tr>`; 
+                // DETEKSI KETERLAMBATAN
+                let infoKeterlambatan = `<span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-bold">${d.status}</span>`;
+                
+                if(d.sesi.toLowerCase().includes("datang")) {
+                    const jamAbsen = d.waktu.substring(0, 5); // Ambil format HH:MM
+                    if(jamAbsen > batasTerlambat) {
+                        infoKeterlambatan = `<span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">Terlambat</span>`;
+                    } else {
+                        infoKeterlambatan = `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Tepat Waktu</span>`;
+                    }
+                }
+
+                tbody.innerHTML += `<tr>
+                    <td class="p-3 border-b">${d.tanggal}<br><span class="text-xs text-gray-500 font-mono">${d.waktu}</span></td>
+                    <td class="p-3 font-mono border-b text-xs">${d.idOrang}</td>
+                    <td class="p-3 font-bold border-b text-sm">${d.nama}</td>
+                    <td class="p-3 border-b"><span class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded text-xs font-bold">${d.peran}</span></td>
+                    <td class="p-3 border-b text-sm">${d.sesi}</td>
+                    <td class="p-3 border-b">${infoKeterlambatan}</td>
+                </tr>`; 
             });
         }
 
         function downloadLaporanExcel() {
             if(dataRekapDitampilkan.length === 0) return Swal.fire('Info', 'Data kosong.', 'warning');
-            let htmlTable = `<table border="1"><thead><tr><th>Tanggal</th><th>Waktu</th><th>Barcode</th><th>Nama</th><th>Kelas/Jabatan</th><th>Sesi</th><th>Status</th></tr></thead><tbody>`;
-            dataRekapDitampilkan.forEach(d => { htmlTable += `<tr><td>${d.tanggal}</td><td>${d.waktu}</td><td>${d.idOrang}</td><td>${d.nama}</td><td>${d.peran}</td><td>${d.sesi}</td><td>${d.status}</td></tr>`; });
+            let htmlTable = `<table border="1"><thead><tr><th>Tanggal</th><th>Waktu</th><th>Barcode</th><th>Nama</th><th>Kelas/Jabatan</th><th>Sesi</th><th>Kehadiran (Keterlambatan)</th></tr></thead><tbody>`;
+            dataRekapDitampilkan.forEach(d => { 
+                let ket = d.status;
+                if(d.sesi.toLowerCase().includes("datang")) {
+                    const jam = d.waktu.substring(0,5);
+                    ket = jam > batasTerlambat ? "Terlambat" : "Tepat Waktu";
+                }
+                htmlTable += `<tr><td>${d.tanggal}</td><td>${d.waktu}</td><td>${d.idOrang}</td><td>${d.nama}</td><td>${d.peran}</td><td>${d.sesi}</td><td>${ket}</td></tr>`; 
+            });
             htmlTable += `</tbody></table>`;
-            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([htmlTable], { type: 'application/vnd.ms-excel' })); a.download = `Rekap_Absensi_Filter.xls`; a.click();
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([htmlTable], { type: 'application/vnd.ms-excel' })); a.download = `Rekap_Absensi_MTs.xls`; a.click();
         }
 
         function downloadLaporanPDF() {
             if(dataRekapDitampilkan.length === 0) return Swal.fire('Info', 'Data kosong.', 'warning');
             let barisTabel = '';
-            dataRekapDitampilkan.forEach((d, i) => { barisTabel += `<tr><td style="border: 1px solid black; padding: 6px; text-align: center;">${i+1}</td><td style="border: 1px solid black; padding: 6px;">${d.tanggal} ${d.waktu}</td><td style="border: 1px solid black; padding: 6px;">${d.nama}</td><td style="border: 1px solid black; padding: 6px; text-align:center;">${d.peran}</td><td style="border: 1px solid black; padding: 6px; text-align:center;">${d.sesi}</td></tr>`; });
+            dataRekapDitampilkan.forEach((d, i) => { 
+                let ket = d.status;
+                let warna = "black";
+                if(d.sesi.toLowerCase().includes("datang")) {
+                    const jam = d.waktu.substring(0,5);
+                    if(jam > batasTerlambat) { ket = "Terlambat"; warna = "red"; } else { ket = "Tepat Waktu"; warna = "green"; }
+                }
+                barisTabel += `<tr>
+                    <td style="border: 1px solid black; padding: 6px; text-align: center;">${i+1}</td>
+                    <td style="border: 1px solid black; padding: 6px;">${d.tanggal} ${d.waktu}</td>
+                    <td style="border: 1px solid black; padding: 6px;">${d.nama}</td>
+                    <td style="border: 1px solid black; padding: 6px; text-align:center;">${d.peran}</td>
+                    <td style="border: 1px solid black; padding: 6px; text-align:center;">${d.sesi}</td>
+                    <td style="border: 1px solid black; padding: 6px; text-align:center; font-weight:bold; color:${warna};">${ket}</td>
+                </tr>`; 
+            });
             
             const areaCetak = document.getElementById('area-cetak');
-            areaCetak.innerHTML = `<div style="font-family: 'Times New Roman', serif; padding: 1cm;"><div style="text-align: center; border-bottom: 3px double black; padding-bottom: 8px; margin-bottom: 15px;"><h1 style="margin: 0; font-size: 20px; font-weight: bold;">LAPORAN PRESENSI MTs PSM LOCERET</h1><p style="margin:0; font-size:12px;">(Data Tersaring)</p></div><table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top:20px;"><thead><tr style="background-color: #e0e7ff;"><th style="border: 1px solid black; padding: 6px;">No</th><th style="border: 1px solid black; padding: 6px;">Waktu</th><th style="border: 1px solid black; padding: 6px;">Nama Lengkap</th><th style="border: 1px solid black; padding: 6px;">Kelas/Jabatan</th><th style="border: 1px solid black; padding: 6px;">Sesi</th></tr></thead><tbody>${barisTabel}</tbody></table></div>`;
+            areaCetak.innerHTML = `<div style="font-family: 'Times New Roman', serif; padding: 1cm;"><div style="text-align: center; border-bottom: 3px double black; padding-bottom: 8px; margin-bottom: 15px;"><h1 style="margin: 0; font-size: 20px; font-weight: bold;">LAPORAN PRESENSI MTs PSM LOCERET</h1><p style="margin:0; font-size:12px;">Data Tersaring & Informasi Keterlambatan</p></div><table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top:20px;"><thead><tr style="background-color: #e0e7ff;"><th style="border: 1px solid black; padding: 6px;">No</th><th style="border: 1px solid black; padding: 6px;">Waktu</th><th style="border: 1px solid black; padding: 6px;">Nama Lengkap</th><th style="border: 1px solid black; padding: 6px;">Kelas/Jabatan</th><th style="border: 1px solid black; padding: 6px;">Sesi</th><th style="border: 1px solid black; padding: 6px;">Kehadiran</th></tr></thead><tbody>${barisTabel}</tbody></table></div>`;
             
             document.getElementById('area-cetak').classList.remove('hidden');
             html2pdf().set({ margin: 1, filename: `Laporan_Absen.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'cm', format: 'a4', orientation: 'portrait' } }).from(document.getElementById('area-cetak')).save().then(() => { document.getElementById('area-cetak').classList.add('hidden'); });
@@ -368,12 +430,19 @@
             if(dataRekapDitampilkan.length === 0) return Swal.fire('Info', 'Data kosong.', 'warning');
             let barisTabel = '';
             dataRekapDitampilkan.forEach((d, i) => { 
+                let ket = d.status;
+                let warna = "black";
+                if(d.sesi.toLowerCase().includes("datang")) {
+                    const jam = d.waktu.substring(0,5);
+                    if(jam > batasTerlambat) { ket = "Terlambat"; warna = "red"; } else { ket = "Tepat Waktu"; warna = "green"; }
+                }
                 barisTabel += `<tr>
                     <td style="border: 1px solid black; padding: 6px; text-align: center;">${i+1}</td>
                     <td style="border: 1px solid black; padding: 6px;">${d.tanggal} ${d.waktu}</td>
                     <td style="border: 1px solid black; padding: 6px;">${d.nama}</td>
                     <td style="border: 1px solid black; padding: 6px; text-align:center;">${d.peran}</td>
                     <td style="border: 1px solid black; padding: 6px; text-align:center;">${d.sesi}</td>
+                    <td style="border: 1px solid black; padding: 6px; text-align:center; font-weight:bold; color:${warna};">${ket}</td>
                 </tr>`; 
             });
             
@@ -388,6 +457,7 @@
                                 <th style="border: 1px solid black; padding: 6px;">Nama Lengkap</th>
                                 <th style="border: 1px solid black; padding: 6px;">Kelas/Jabatan</th>
                                 <th style="border: 1px solid black; padding: 6px;">Sesi</th>
+                                <th style="border: 1px solid black; padding: 6px;">Kehadiran</th>
                             </tr>
                         </thead>
                         <tbody>${barisTabel}</tbody>
@@ -396,14 +466,13 @@
             </body></html>`;
             
             const converted = htmlDocx.asBlob(content);
-            saveAs(converted, 'Rekap_Absensi.docx');
+            saveAs(converted, 'Rekap_Absensi_MTs.docx');
         }
 
         // ==========================================
         // PENGATURAN BEL DINAMIS
         // ==========================================
         let jadwalBelArray = ["07:00:00", "09:30:00", "15:00:00"]; 
-        
         if(localStorage.getItem('jadwalBelMadrasah')) {
             jadwalBelArray = JSON.parse(localStorage.getItem('jadwalBelMadrasah'));
             setTimeout(() => { if(document.getElementById('input-jadwal-bel')) document.getElementById('input-jadwal-bel').value = jadwalBelArray.join(", "); }, 1000);
@@ -414,6 +483,13 @@
             jadwalBelArray = inputVal.split(',').map(jam => jam.trim());
             localStorage.setItem('jadwalBelMadrasah', JSON.stringify(jadwalBelArray));
             Swal.fire('Tersimpan', 'Jadwal bel otomatis berhasil diperbarui!', 'success');
+        }
+
+        function simpanBatasTerlambat() {
+            batasTerlambat = document.getElementById('input-batas-terlambat').value;
+            localStorage.setItem('batasTerlambatMadrasah', batasTerlambat);
+            Swal.fire('Tersimpan', `Batas terlambat diatur ke jam ${batasTerlambat}!`, 'success');
+            if(dataRekapDitampilkan.length > 0) renderTabelRekap();
         }
 
         setInterval(() => {
@@ -441,7 +517,6 @@
                 return Swal.fire('Gagal', `Data ${jenisKartuAktif} tidak ditemukan atau kosong.`, 'error');
             }
 
-            // Siapkan area cetak dengan styling untuk ID Card
             let kartuHTML = `<div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; padding: 20px; background: white;">`;
             
             res.data.forEach((item, index) => {
@@ -457,7 +532,6 @@
                         <h4 style="margin: 0 0 4px; font-size: 16px; color: #1f2937; font-weight: 800;">${item.nama}</h4>
                         <p style="margin: 0 0 10px; font-size: 13px; color: #4b5563; font-weight: bold;">${item.peran || item.kelas || 'Guru'}</p>
                         
-                        <!-- Tempat QR Code dirender -->
                         <div id="qrcode-${index}" style="display: flex; justify-content: center; margin: 15px auto; padding: 5px; background: white; border: 1px solid #e5e7eb; border-radius: 8px; width: max-content;"></div>
                         
                         <p style="margin: 0; font-size: 12px; color: #374151; font-family: monospace; letter-spacing: 2px;">${idBarcode}</p>
@@ -474,7 +548,6 @@
             areaCetak.innerHTML = kartuHTML;
             areaCetak.classList.remove('hidden');
 
-            // Render ulang QR code di setiap kartu
             res.data.forEach((item, index) => {
                 const idBarcode = item.idOrang || item.nis || item.nip || "000";
                 new QRCode(document.getElementById(`qrcode-${index}`), {
@@ -487,7 +560,6 @@
                 });
             });
 
-            // Beri waktu sebentar agar QR Code selesai dirender sebelum proses dokumen
             setTimeout(() => {
                 if (mode === 'print') {
                     window.print();
