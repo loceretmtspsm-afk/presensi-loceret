@@ -316,19 +316,25 @@
             }
         }
 
-        // --- SISTEM AUTO-SCAN GUN ---
+        // --- SISTEM AUTO-SCAN GUN (DIOPTIMALKAN UNTUK NIP/ID PANJANG) ---
         let barcodeBuffer = "";
         let lastKeyTime = Date.now();
         document.addEventListener('keypress', function(e) {
             if (document.getElementById('view-scan').classList.contains('hidden') || e.target.tagName === 'SELECT') return;
             const currentTime = Date.now();
-            if (currentTime - lastKeyTime > 100) barcodeBuffer = "";
+            if (currentTime - lastKeyTime > 300) barcodeBuffer = "";
             lastKeyTime = currentTime;
 
             if (e.key === 'Enter') {
-                if (barcodeBuffer !== "") { e.preventDefault(); prosesScanDatabase(barcodeBuffer); barcodeBuffer = ""; document.getElementById('input-scanner').value = ""; }
+                if (barcodeBuffer !== "") { 
+                    e.preventDefault(); 
+                    prosesScanDatabase(barcodeBuffer.trim()); 
+                    barcodeBuffer = ""; 
+                    document.getElementById('input-scanner').value = ""; 
+                }
             } else {
-                barcodeBuffer += e.key; document.getElementById('input-scanner').value = barcodeBuffer;
+                barcodeBuffer += e.key; 
+                document.getElementById('input-scanner').value = barcodeBuffer;
             }
         });
 
@@ -336,7 +342,7 @@
             document.getElementById('btn-start').classList.add('hidden'); document.getElementById('btn-stop').classList.remove('hidden');
             if (!html5Qrcode) html5Qrcode = new Html5Qrcode("reader");
             isScanning = true;
-            html5Qrcode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, (txt) => { prosesScanDatabase(txt); }, (err) => {}).catch(err => { stopKamera(); });
+            html5Qrcode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, (txt) => { prosesScanDatabase(txt.trim()); }, (err) => {}).catch(err => { stopKamera(); });
         }
         function stopKamera() {
             if (html5Qrcode) { html5Qrcode.stop().then(() => { html5Qrcode.clear(); html5Qrcode = null; }).catch(e => {}); }
@@ -356,17 +362,39 @@
                 const now = new Date();
                 const jam = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
                 const isGuru = r.data.peran && r.data.peran.toLowerCase().includes('guru');
-                const sapaan = isGuru ? "Bapak atau Ibu " : "Ananda "; 
-                const teksSuara = `Terima kasih ${sapaan} ${r.data.nama}, sudah absen pada hari ini di jam ${jam}`;
                 
+                // Suara Sapaan TTS
+                const sapaanSuara = isGuru ? "Bapak atau Ibu " : "Ananda "; 
+                const teksSuara = `Terima kasih ${sapaanSuara} ${r.data.nama}, sudah absen ${sesi} pada jam ${jam}`;
                 const speech = new SpeechSynthesisUtterance(teksSuara);
                 speech.lang = 'id-ID'; 
                 speech.rate = 0.9;     
                 window.speechSynthesis.speak(speech);
 
-                Swal.fire({ title: 'BERHASIL ABSEN!', html: `<b style="font-size:1.8rem; color:#047857;">${r.data.nama}</b><br><br>Sesi: <b>${sesi}</b>`, icon: 'success', timer: 3000, showConfirmButton: false });
+                // Pemberitahuan Tulisan Layar (Pop-up) untuk Guru & Siswa
+                const judulPopup = isGuru ? 'ABSENSI GURU BERHASIL!' : 'ABSENSI SISWA BERHASIL!';
+                const sapaanLayar = isGuru ? 'Bapak/Ibu ' : '';
+                const detailLabel = r.data.detail ? `(${r.data.detail})` : '';
+                const badgeKategori = isGuru ? 'Tenaga Pendidik / Guru' : `Peserta Didik ${detailLabel}`;
+
+                Swal.fire({ 
+                    title: judulPopup, 
+                    html: `
+                        <div style="margin-top: 8px;">
+                            <b style="font-size:1.6rem; color:#047857;">${sapaanLayar}${r.data.nama}</b><br>
+                            <span style="display:inline-block; margin-top:6px; padding:4px 12px; background:#d1fae5; color:#065f46; border-radius:8px; font-weight:bold; font-size:0.9rem;">
+                                ${badgeKategori}
+                            </span><br><br>
+                            Sesi: <b>${sesi}</b> &bull; Pukul: <b>${jam} WIB</b>
+                        </div>
+                    `, 
+                    icon: 'success', 
+                    timer: 4000, 
+                    showConfirmButton: false 
+                });
             } else {
-                document.getElementById('audio-gagal').play().catch(e=>console.log(e)); Swal.fire('Gagal', r.pesan, 'error');
+                document.getElementById('audio-gagal').play().catch(e=>console.log(e)); 
+                Swal.fire('Gagal', r.pesan, 'error');
             }
             setTimeout(() => { lastScan = ""; }, 3000); 
         }
@@ -397,9 +425,9 @@
                 const peranStr = (d.peran || "").toLowerCase();
                 
                 if (kat === 'guru') {
-                    matchKat = peranStr.includes("guru");
+                    matchKat = peranStr.includes("guru") || peranStr.includes("kepsek");
                 } else if (kat === 'siswa') {
-                    matchKat = !peranStr.includes("guru"); 
+                    matchKat = !peranStr.includes("guru") && !peranStr.includes("kepsek"); 
                 }
                 
                 let matchTeks = true;
@@ -412,7 +440,6 @@
             renderTabelRekap();
         }
 
-        // 1. TAMPILAN LAYAR: Gabungkan Datang & Pulang menjadi 1 baris per orang per hari
         function renderTabelRekap() {
             const tbody = document.getElementById('body-rekap');
             tbody.innerHTML = '';
@@ -465,7 +492,6 @@
             });
         }
 
-        // 2. DOWNLOAD EXCEL HARIAN TERGABUNG
         function downloadLaporanExcel() {
             if(dataRekapDitampilkan.length === 0) return Swal.fire('Info', 'Data kosong.', 'warning');
             let htmlTable = `<table border="1"><thead><tr><th>Tanggal</th><th>Barcode</th><th>Nama</th><th>Kelas/Jabatan</th><th>Sesi</th><th>Waktu</th><th>Status</th></tr></thead><tbody>`;
@@ -481,7 +507,6 @@
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([htmlTable], { type: 'application/vnd.ms-excel' })); a.download = `Rekap_Absensi_MTs.xls`; a.click();
         }
 
-        // 3. GENERATOR HTML LEMBAR ABSEN BULANAN (MATRIKS 1-31 + KOLOM H, S, I, A + TTD)
         function buatHTMLMatriksBulanan() {
             const tglInput = document.getElementById('tgl-mulai').value;
             const tglObj = tglInput ? new Date(tglInput) : new Date();
@@ -596,7 +621,6 @@
             </div>`;
         }
 
-        // 4. CETAK / SIMPAN PDF (LANDSCAPE)
         function cetakLembarAbsenBulanan() {
             if (dataRekapDitampilkan.length === 0) return Swal.fire('Info', 'Tarik database terlebih dahulu.', 'warning');
             
@@ -616,7 +640,6 @@
             }, 300);
         }
 
-        // 5. UNDUH WORD (.DOCX) FORMAT MATRIKS BULANAN
         function downloadLembarAbsenWord() {
             if (dataRekapDitampilkan.length === 0) return Swal.fire('Info', 'Tarik database terlebih dahulu.', 'warning');
             
